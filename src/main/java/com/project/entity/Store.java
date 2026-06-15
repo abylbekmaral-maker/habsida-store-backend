@@ -8,6 +8,7 @@ import lombok.Setter;
 @Table(name = "stores")
 @Getter @Setter
 public class Store extends BaseEntity {
+
     @Column(nullable = false)
     private String name;
 
