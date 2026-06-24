@@ -27,8 +27,11 @@ public class UserService {
 
     public User createMerchant(String username, String email, String password) {
         
-        if (userRepository.findByUsername(username).isPresent()) {
+        if (userRepository.existsByUsername(username)) {
             throw new RuntimeException("Username is already taken");
+        }
+        if(userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Email is already taken");
         }
         
         Role merchantRole = roleRepository.findByName("ROLE_MERCHANT")
