@@ -3,6 +3,8 @@ package com.project.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
@@ -16,11 +18,21 @@ import java.util.function.Function;
 @Component
 public class JwtTokenProvider {
 
-    private final String SECRET_KEY = "secret_key_secret_key_secret_key_secret_key";
-    private final long EXPIRATION_TIME = 86400000;
+    @Value("${spring.app.jwt.secret}")
+    private String secretKey;
+
+    @Value("${spring.app.jwt.expiration}")
+    private long jwtExpiration;
+
+    private SecretKey signingKey;
+
+    @PostConstruct
+    public void init() {
+        this.signingKey = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+    }
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+        return this.signingKey;
     }
 
     public String generateToken(UserDetails userDetails) {
@@ -31,7 +43,7 @@ public class JwtTokenProvider {
                 .claims(claims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }

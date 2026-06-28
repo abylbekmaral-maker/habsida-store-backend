@@ -5,7 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "user_store_access")
+@Table(name = "user_store_access", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_user_store", columnNames = {"user_id", "store_id"})
+})
 @Getter @Setter
 public class UserStoreAccess extends BaseEntity{
 

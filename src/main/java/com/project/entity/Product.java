@@ -1,0 +1,47 @@
+package com.project.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "products", uniqueConstraints =  {
+        @UniqueConstraint(name = "uk_product_store_name", columnNames = {"store_id", "name"})
+})
+@Getter @Setter
+public class Product extends BaseEntity{
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(nullable = false)
+    private BigDecimal price;
+
+    @Column(nullable = false)
+    private Integer stock = 0;
+
+    @Column(name = "low_stock_threshold", nullable = false)
+    private Integer lowStockThreshold = 5;
+
+    @Column(name = "pause_ordering", nullable = false)
+    private boolean pauseOrdering = false;
+
+    @Column(name = "min_quantity", nullable = false)
+    private Integer minQuantity = 1;
+
+    @Column(name = "max_quantity", nullable = false)
+    private Integer maxQuantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id", nullable = false)
+    private Store store;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+}

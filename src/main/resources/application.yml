@@ -4,6 +4,11 @@ spring:
   profiles:
     active: dev
 
+  app:
+    jwt:
+      secret: ${JWT_SECRET:default_long_secret_key_if_not_set_in_env_32}
+      expiration: 86400000
+
   jpa:
     hibernate:
       ddl-auto: validate
