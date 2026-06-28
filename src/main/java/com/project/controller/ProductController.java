@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/store/{storeSlug}/products")
+@RequestMapping("/api/stores/{storeSlug}/products")
 @RequiredArgsConstructor
 public class ProductController {
 
@@ -32,7 +32,7 @@ public class ProductController {
     public ResponseEntity<Product> getProductById(
             @PathVariable String storeSlug,
             @PathVariable UUID id) {
-                return ResponseEntity.ok(productService.getProductById(id));
+                return ResponseEntity.ok(productService.getProductById(storeSlug,id));
     }
 
     @PostMapping
@@ -49,7 +49,7 @@ public class ProductController {
             @PathVariable String storeSlug,
             @PathVariable UUID id,
             @Valid @RequestBody ProductDto request) {
-        return ResponseEntity.ok(productService.updateProduct(id, request));
+        return ResponseEntity.ok(productService.updateProduct(storeSlug, id, request));
     }
 
     @DeleteMapping("/{id}")
@@ -57,7 +57,7 @@ public class ProductController {
     public ResponseEntity<Void> deleteProduct(
             @PathVariable String storeSlug,
             @PathVariable UUID id) {
-        productService.deleteProduct(id);
+        productService.deleteProduct(storeSlug,id);
         return ResponseEntity.noContent().build();
     }
 }

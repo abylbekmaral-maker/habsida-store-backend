@@ -29,9 +29,15 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Product getProductById(UUID id) {
-        return productRepository.findById(id)
+    public Product getProductById(String storeSlug, UUID id) {
+        Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (!product.getStore().getSlug().equals(storeSlug)) {
+            throw new RuntimeException("Product does not belong to this store");
+        }
+
+        return product;
     }
 
     @Transactional
@@ -80,12 +86,16 @@ public class ProductService {
     }
 
     @Transactional
-    public Product updateProduct(UUID id, ProductDto dto) {
+    public Product updateProduct(String storeSlug, UUID id, ProductDto dto) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        if (!product.getStore().getSlug().equals(storeSlug)) {
+            throw new RuntimeException("Product does not belong to this store");
+        }
+
         if (!product.getName().equals(dto.getName()) &&
-        productRepository.existsByStoreIdAndName(product.getStore().getId(), dto.getName())) {
+                productRepository.existsByStoreIdAndName(product.getStore().getId(), dto.getName())) {
             throw new RuntimeException("Product with this name already exists in this store");
         }
 
@@ -100,19 +110,25 @@ public class ProductService {
         } else {
             product.setCategory(null);
         }
+
         updateProductFields(product, dto);
         return productRepository.save(product);
     }
 
     @Transactional
-    public void deleteProduct(UUID id) {
-        if(!productRepository.existsById(id)) {
-            throw new RuntimeException("Product not found");
+    public void deleteProduct(String storeSlug, UUID id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (!product.getStore().getSlug().equals(storeSlug)) {
+            throw new RuntimeException("Product does not belong to this store");
         }
-        productRepository.deleteById(id);
+
+        productRepository.delete(product);
     }
 
-    private void updateProductFields(Product product, ProductDto dto) {
+    private void updateProductFields(Product product, ProductDto dto)
+    {
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());

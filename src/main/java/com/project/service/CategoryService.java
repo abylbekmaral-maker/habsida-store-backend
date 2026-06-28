@@ -1,5 +1,6 @@
 package com.project.service;
 
+import com.project.dto.CategoryDto;
 import com.project.entity.Category;
 import com.project.entity.Store;
 import com.project.repository.CategoryRepository;
@@ -42,9 +43,40 @@ public class CategoryService {
 
         return categoryRepository.save(category);
     }
+    @Transactional
+    public void deleteCategory(String storeSlug, UUID id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        if (!category.getStore().getSlug().equals(storeSlug)) {
+            throw new RuntimeException("Category does not belong to this store");
+        }
+
+        categoryRepository.delete(category);
+    }
 
     @Transactional
-    public void deleteCategory(UUID id) {
-        categoryRepository.deleteById(id);
+    public Category updateCategory(String storeSlug, UUID id, CategoryDto dto) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        if (!category.getStore().getSlug().equals(storeSlug)) {
+            throw new RuntimeException("Category does not belong to this store");
+        }
+
+        if (!category.getName().equals(dto.getName())
+                && categoryRepository.existsByStoreIdAndName(category.getStore().getId(), dto.getName())) {
+            throw new RuntimeException("Category with this name already exists in this store");
+        }
+
+        if (!category.getSlug().equals(dto.getSlug())
+                && categoryRepository.existsByStoreIdAndSlug(category.getStore().getId(), dto.getSlug())) {
+            throw new RuntimeException("Category with this slug already exists in this store");
+        }
+
+        category.setName(dto.getName());
+        category.setSlug(dto.getSlug());
+
+        return categoryRepository.save(category);
     }
 }

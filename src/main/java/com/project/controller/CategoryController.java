@@ -41,7 +41,19 @@ public class CategoryController {
     @DeleteMapping("/{id}")
     @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
     public ResponseEntity<Void> deleteCategory(@PathVariable String storeSlug, @PathVariable UUID id) {
-        categoryService.deleteCategory(id);
+        categoryService.deleteCategory(storeSlug, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
+    public ResponseEntity<Category> updateCategory(
+            @PathVariable String storeSlug,
+            @PathVariable UUID id,
+            @Valid @RequestBody CategoryDto request) {
+
+        return ResponseEntity.ok(
+                categoryService.updateCategory(storeSlug, id, request)
+        );
     }
 }
