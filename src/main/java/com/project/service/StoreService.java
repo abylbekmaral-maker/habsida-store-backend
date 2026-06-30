@@ -1,12 +1,14 @@
 package com.project.service;
 
 import com.project.dto.CreateStoreRequest;
+import com.project.dto.StoreResponseDto;
 import com.project.entity.Store;
 import com.project.entity.User;
 import com.project.repository.StoreRepository;
 import com.project.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,33 +21,51 @@ public class StoreService {
     private final StoreAccessService storeAccessService;
     private final UserRepository userRepository;
 
-    public Store createStore(CreateStoreRequest request) {
+    @Transactional
+    public StoreResponseDto createStore(CreateStoreRequest request) {
+        if (storeRepository.existsBySlug(request.getSlug())) {
+            throw new IllegalArgumentException("Store with this slug already exists");
+        }
         User owner = userRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
 
         Store store = new Store();
         store.setName(request.getName());
         store.setSlug(request.getSlug());
         store.setOwner(owner);
 
-        return storeRepository.save(store);
+        return toResponseDto(storeRepository.save(store));
     }
 
-    public List<Store> getAllStores() {
-        return storeRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<StoreResponseDto> getAllStores() {
+        return storeRepository.findAll()
+                .stream()
+                .map(this::toResponseDto)
+                .toList();
     }
 
-    public Store getStoreForMerchant(UUID storeId, String username) {
+    @Transactional(readOnly = true)
+    public StoreResponseDto getStoreForMerchant(UUID storeId, String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new RuntimeException("Store not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
         if (!storeAccessService.hasAccess(user, store)) {
-            throw new RuntimeException("Access denied");
+            throw new IllegalArgumentException("Access denied");
         }
 
-        return store;
+        return toResponseDto(store);
+    }
+
+    private StoreResponseDto toResponseDto(Store store) {
+        return new StoreResponseDto(
+                store.getId(),
+                store.getName(),
+                store.getSlug(),
+                store.getOwner().getId()
+        );
     }
 }

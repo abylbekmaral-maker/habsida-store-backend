@@ -1,6 +1,7 @@
 package com.project.service;
 
 import com.project.dto.ProductDto;
+import com.project.dto.ProductResponseDto;
 import com.project.entity.Category;
 import com.project.entity.Product;
 import com.project.entity.Store;
@@ -24,45 +25,45 @@ public class ProductService {
     private final StoreRepository storeRepository;
 
     @Transactional(readOnly = true)
-    public List<Product> getProducts(String storeSlug, String categorySlug, Boolean pauseOrdering) {
-        return productRepository.findProductWithFilters(storeSlug, categorySlug, pauseOrdering);
+    public List<ProductResponseDto> getProducts(String storeSlug, String categorySlug, Boolean pauseOrdering) {
+        return productRepository.findProductWithFilters(storeSlug, categorySlug, pauseOrdering).stream().map(this::toResponseDto).toList();
     }
 
     @Transactional(readOnly = true)
-    public Product getProductById(String storeSlug, UUID id) {
+    public ProductResponseDto getProductById(String storeSlug, UUID id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new RuntimeException("Product does not belong to this store");
+            throw new IllegalArgumentException("Product does not belong to this store");
         }
 
-        return product;
+        return toResponseDto(product);
     }
 
     @Transactional
-    public Product createProduct(String storeSlug, ProductDto dto) {
+    public ProductResponseDto createProduct(String storeSlug, ProductDto dto) {
         Store store = storeRepository.findBySlug(storeSlug)
-                .orElseThrow(() -> new RuntimeException("Store not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
         Category category = null;
         if(dto.getCategoryId() != null) {
             category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Category not found"));
             if(!category.getStore().getId().equals(store.getId())) {
-                throw new RuntimeException("Selected category belongs to another store");
+                throw new IllegalArgumentException("Selected category belongs to another store");
             }
         }
 
         if (productRepository.existsByStoreIdAndName(store.getId(), dto.getName())) {
-            throw new RuntimeException("Product with this name already exists in this store");
+            throw new IllegalArgumentException("Product with this name already exists in this store");
         }
         Product product = new Product();
         product.setStore(store);
         product.setCategory(category);
         updateProductFields(product, dto);
 
-        return productRepository.save(product);
+        return toResponseDto(productRepository.save(product));
     }
 
     @Transactional
@@ -86,25 +87,25 @@ public class ProductService {
     }
 
     @Transactional
-    public Product updateProduct(String storeSlug, UUID id, ProductDto dto) {
+    public ProductResponseDto updateProduct(String storeSlug, UUID id, ProductDto dto) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new RuntimeException("Product does not belong to this store");
+            throw new IllegalArgumentException("Product does not belong to this store");
         }
 
         if (!product.getName().equals(dto.getName()) &&
                 productRepository.existsByStoreIdAndName(product.getStore().getId(), dto.getName())) {
-            throw new RuntimeException("Product with this name already exists in this store");
+            throw new IllegalArgumentException("Product with this name already exists in this store");
         }
 
         if(dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found"));
 
             if(!category.getStore().getId().equals(product.getStore().getId())) {
-                throw new RuntimeException("Selected category belongs to another store");
+                throw new IllegalArgumentException("Selected category belongs to another store");
             }
             product.setCategory(category);
         } else {
@@ -112,16 +113,16 @@ public class ProductService {
         }
 
         updateProductFields(product, dto);
-        return productRepository.save(product);
+        return toResponseDto(productRepository.save(product));
     }
 
     @Transactional
     public void deleteProduct(String storeSlug, UUID id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new RuntimeException("Product does not belong to this store");
+            throw new IllegalArgumentException("Product does not belong to this store");
         }
 
         productRepository.delete(product);
@@ -137,5 +138,20 @@ public class ProductService {
         product.setPauseOrdering(dto.isPauseOrdering());
         product.setMinQuantity(dto.getMinQuantity() != null ? dto.getMinQuantity() : 1);
         product.setMaxQuantity(dto.getMaxQuantity());
+    }
+    private ProductResponseDto toResponseDto(Product product) {
+        return new ProductResponseDto(
+                product.getId(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getStock(),
+                product.getLowStockThreshold(),
+                product.isPauseOrdering(),
+                product.getMinQuantity(),
+                product.getMaxQuantity(),
+                product.getStore().getId(),
+                product.getCategory() != null ? product.getCategory().getId() : null
+        );
     }
 }

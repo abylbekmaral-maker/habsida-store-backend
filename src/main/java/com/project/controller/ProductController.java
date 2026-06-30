@@ -1,7 +1,7 @@
 package com.project.controller;
 
 import com.project.dto.ProductDto;
-import com.project.entity.Product;
+import com.project.dto.ProductResponseDto;
 import com.project.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +20,16 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts(
+    public ResponseEntity<List<ProductResponseDto>> getAllProducts(
             @PathVariable String storeSlug,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(required = false) Boolean pauseOrdering) {
-     List<Product> products = productService.getProducts(storeSlug, categorySlug, pauseOrdering);
+     List<ProductResponseDto> products = productService.getProducts(storeSlug, categorySlug, pauseOrdering);
      return ResponseEntity.ok(products);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(
+    public ResponseEntity<ProductResponseDto> getProductById(
             @PathVariable String storeSlug,
             @PathVariable UUID id) {
                 return ResponseEntity.ok(productService.getProductById(storeSlug,id));
@@ -37,7 +37,7 @@ public class ProductController {
 
     @PostMapping
     @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
-    public ResponseEntity<Product> createProduct(
+    public ResponseEntity<ProductResponseDto> createProduct(
             @PathVariable String storeSlug,
             @Valid @RequestBody ProductDto request) {
         return ResponseEntity.ok(productService.createProduct(storeSlug, request));
@@ -45,7 +45,7 @@ public class ProductController {
 
     @PutMapping("/{id}")
     @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
-    public ResponseEntity<Product> updateProduct(
+    public ResponseEntity<ProductResponseDto> updateProduct(
             @PathVariable String storeSlug,
             @PathVariable UUID id,
             @Valid @RequestBody ProductDto request) {

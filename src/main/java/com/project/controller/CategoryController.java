@@ -1,7 +1,7 @@
 package com.project.controller;
 
 import com.project.dto.CategoryDto;
-import com.project.entity.Category;
+import com.project.dto.CategoryResponseDto;
 import com.project.service.CategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,16 +20,16 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping
-    public ResponseEntity<List<Category>> getAllCategories(@PathVariable String storeSlug) {
+    public ResponseEntity<List<CategoryResponseDto>> getAllCategories(@PathVariable String storeSlug) {
         return ResponseEntity.ok(categoryService.getCategoriesByStore(storeSlug));
     }
 
     @PostMapping
     @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
-    public ResponseEntity<Category> createCategory(
+    public ResponseEntity<CategoryResponseDto> createCategory(
             @PathVariable String storeSlug,
             @Valid @RequestBody CategoryDto request) {
-        Category category = categoryService.createCategory(
+        CategoryResponseDto category = categoryService.createCategory(
                 storeSlug,
                 request.getName(),
                 request.getSlug()
@@ -47,7 +47,7 @@ public class CategoryController {
 
     @PutMapping("/{id}")
     @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
-    public ResponseEntity<Category> updateCategory(
+    public ResponseEntity<CategoryResponseDto> updateCategory(
             @PathVariable String storeSlug,
             @PathVariable UUID id,
             @Valid @RequestBody CategoryDto request) {

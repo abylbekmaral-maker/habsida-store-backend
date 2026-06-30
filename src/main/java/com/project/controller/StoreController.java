@@ -1,10 +1,11 @@
 package com.project.controller;
 
 import com.project.dto.CreateStoreRequest;
-import com.project.entity.Store;
+import com.project.dto.StoreResponseDto;
 import com.project.service.StoreService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -18,22 +19,23 @@ import java.util.UUID;
 public class StoreController {
 
     private final StoreService storeService;
-
+    
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public Store createStore(@Valid @RequestBody CreateStoreRequest request) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public StoreResponseDto createStore(@Valid @RequestBody CreateStoreRequest request) {
         return storeService.createStore(request);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public List<Store> getAllStores() {
+    public List<StoreResponseDto> getAllStores() {
         return storeService.getAllStores();
     }
 
     @PreAuthorize("hasRole('MERCHANT')")
     @GetMapping("/{storeId}/my")
-    public Store getMyStore(
+    public StoreResponseDto getMyStore(
             @PathVariable UUID storeId,
             Authentication authentication
     ) {
