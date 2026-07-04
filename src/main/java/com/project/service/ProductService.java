@@ -1,9 +1,11 @@
 package com.project.service;
 
 import com.project.dto.ProductDto;
+import com.project.dto.ProductImageDto;
 import com.project.dto.ProductResponseDto;
 import com.project.entity.Category;
 import com.project.entity.Product;
+import com.project.entity.ProductImage;
 import com.project.entity.Store;
 import com.project.repository.CategoryRepository;
 import com.project.repository.ProductRepository;
@@ -11,6 +13,7 @@ import com.project.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,6 +26,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getProducts(String storeSlug, String categorySlug, Boolean pauseOrdering) {
@@ -49,7 +53,7 @@ public class ProductService {
         Category category = null;
         if(dto.getCategoryId() != null) {
             category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found"));
             if(!category.getStore().getId().equals(store.getId())) {
                 throw new IllegalArgumentException("Selected category belongs to another store");
             }
@@ -139,7 +143,44 @@ public class ProductService {
         product.setMinQuantity(dto.getMinQuantity() != null ? dto.getMinQuantity() : 1);
         product.setMaxQuantity(dto.getMaxQuantity());
     }
+
+    @Transactional
+    public ProductResponseDto uploadImages(String storeSlug, UUID productId, List<MultipartFile> files) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        if (!product.getStore().getSlug().equals(storeSlug)) {
+            throw new IllegalArgumentException("Product does not belong to this store");
+        }
+
+        int currentMaxOrder = product.getImages().stream()
+                .mapToInt(ProductImage::getSortOrder)
+                .max()
+                .orElse(-1);
+
+        for (MultipartFile file : files) {
+            if (!file.isEmpty()) {
+                String imageUrl = fileStorageService.storeFile(file);
+
+                ProductImage image = new ProductImage();
+                image.setImageUrl(imageUrl);
+                image.setSortOrder(++currentMaxOrder);
+
+                product.addImage(image);
+            }
+        }
+        return toResponseDto(productRepository.save(product));
+    }
+
     private ProductResponseDto toResponseDto(Product product) {
+        List<ProductImageDto> imageDtos = product.getImages().stream()
+                .map(image -> new ProductImageDto(
+                        image.getId(),
+                        image.getImageUrl(),
+                        image.getSortOrder()
+                ))
+                .toList();
+
         return new ProductResponseDto(
                 product.getId(),
                 product.getName(),
@@ -151,7 +192,8 @@ public class ProductService {
                 product.getMinQuantity(),
                 product.getMaxQuantity(),
                 product.getStore().getId(),
-                product.getCategory() != null ? product.getCategory().getId() : null
+                product.getCategory() != null ? product.getCategory().getId() : null,
+                imageDtos
         );
     }
 }

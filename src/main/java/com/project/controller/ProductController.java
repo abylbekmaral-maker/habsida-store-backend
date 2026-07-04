@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -59,5 +60,14 @@ public class ProductController {
             @PathVariable UUID id) {
         productService.deleteProduct(storeSlug,id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/{id}/images", consumes = "multipart/form-data")
+    @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
+    public ResponseEntity<ProductResponseDto> uploadProductImages(
+            @PathVariable String storeSlug,
+            @PathVariable UUID id,
+            @RequestParam("files") List<MultipartFile> files) {
+     return ResponseEntity.ok(productService.uploadImages(storeSlug, id, files));
     }
 }
