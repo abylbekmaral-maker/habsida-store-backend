@@ -2,6 +2,7 @@ package com.project.controller;
 
 import com.project.dto.ProductDto;
 import com.project.dto.ProductResponseDto;
+import com.project.service.ModifierService;
 import com.project.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+    private final ModifierService modifierService;
 
     @GetMapping
     public ResponseEntity<List<ProductResponseDto>> getAllProducts(
@@ -69,5 +71,26 @@ public class ProductController {
             @PathVariable UUID id,
             @RequestParam("files") List<MultipartFile> files) {
      return ResponseEntity.ok(productService.uploadImages(storeSlug, id, files));
+    }
+
+    @PostMapping("/{productId}/modifiers/{groupId}")
+    @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
+    public ResponseEntity<Void> linkModifierToProduct(
+            @PathVariable("storeSlug") String storeSlug,
+            @PathVariable("productId") UUID productId,
+            @PathVariable("groupId") UUID groupId) {
+        modifierService.linkModifierGroupToProduct(storeSlug, productId, groupId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{productId}/modifiers/{groupId}")
+    @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
+    public ResponseEntity<Void> unlinkModifierFromProduct(
+            @PathVariable("storeSlug") String storeSlug,
+            @PathVariable("productId") UUID productId,
+            @PathVariable("groupId") UUID groupId) {
+
+        modifierService.unlinkModifierGroupFromProduct(storeSlug, productId, groupId);
+        return ResponseEntity.noContent().build();
     }
 }

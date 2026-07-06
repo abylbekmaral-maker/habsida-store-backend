@@ -16,5 +16,6 @@ public record ProductResponseDto (
         Integer maxQuantity,
         UUID storeId,
         UUID categoryId,
-        List<ProductImageDto> images
+        List<ProductImageDto> images,
+        List<ModifierGroupResponseDto> modifierGroups
 ) {}

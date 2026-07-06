@@ -1,8 +1,6 @@
 package com.project.service;
 
-import com.project.dto.ProductDto;
-import com.project.dto.ProductImageDto;
-import com.project.dto.ProductResponseDto;
+import com.project.dto.*;
 import com.project.entity.Category;
 import com.project.entity.Product;
 import com.project.entity.ProductImage;
@@ -181,6 +179,19 @@ public class ProductService {
                 ))
                 .toList();
 
+        List<ModifierGroupResponseDto> modifierGroupDtos = product.getModifierGroups().stream()
+                .map(group -> new ModifierGroupResponseDto(
+                        group.getId(),
+                        group.getName(),
+                        group.isRequired(),
+                        group.getMinSelect(),
+                        group.getMaxSelect(),
+                        group.getOptions().stream()
+                                .map(opt -> new ModifierOptionResponseDto(opt.getId(), opt.getName(), opt.getPrice()))
+                                .toList()
+                ))
+                .toList();
+
         return new ProductResponseDto(
                 product.getId(),
                 product.getName(),
@@ -193,7 +204,8 @@ public class ProductService {
                 product.getMaxQuantity(),
                 product.getStore().getId(),
                 product.getCategory() != null ? product.getCategory().getId() : null,
-                imageDtos
+                imageDtos,
+                modifierGroupDtos
         );
     }
 }

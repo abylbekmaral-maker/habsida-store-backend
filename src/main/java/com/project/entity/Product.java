@@ -51,6 +51,24 @@ public class Product extends BaseEntity{
     @OrderBy("sortOrder ASC")
     private List<ProductImage> images = new ArrayList<>();
 
+    @ManyToMany
+    @JoinTable(
+            name = "product_modifier_groups",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "modifier_group_id")
+    )
+    private List<ModifierGroup> modifierGroups = new ArrayList<>();
+
+    public void addModifierGroup(ModifierGroup group) {
+        this.modifierGroups.add(group);
+        group.getProducts().add(this);
+    }
+
+    public void removeModifierGroup(ModifierGroup group) {
+        this.modifierGroups.remove(group);
+        group.getProducts().remove(this);
+    }
+
     public void addImage(ProductImage image) {
         images.add(image);
         image.setProduct(this);
