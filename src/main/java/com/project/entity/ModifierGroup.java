@@ -6,16 +6,11 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "modifier_groups")
 @Getter @Setter
-public class ModifierGroup {
-
-    @Id
-    @GeneratedValue
-    private UUID id;
+public class ModifierGroup extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)

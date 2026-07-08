@@ -6,6 +6,8 @@ import com.project.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,13 +15,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/admin/customers")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminCustomerController {
 
     private final CustomerService customerService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CustomerResponseDto createCustomer(@RequestBody CustomerRequestDto requestDto) {
+    public CustomerResponseDto createCustomer(@Valid @RequestBody CustomerRequestDto requestDto) {
         return customerService.createCustomer(requestDto);
     }
 
@@ -36,7 +39,7 @@ public class AdminCustomerController {
     @PutMapping("/{id}")
     public CustomerResponseDto updateCustomer(
             @PathVariable UUID id,
-            @RequestBody CustomerRequestDto requestDto) {
+            @Valid @RequestBody CustomerRequestDto requestDto) {
         return customerService.updateCustomer(id, requestDto);
     }
 

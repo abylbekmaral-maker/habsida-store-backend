@@ -4,16 +4,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.UUID;
-
 @Entity
 @Table(name = "customer_addresses")
 @Getter @Setter
-public class CustomerAddress {
-
-    @Id
-    @GeneratedValue
-    private UUID id;
+public class CustomerAddress extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)

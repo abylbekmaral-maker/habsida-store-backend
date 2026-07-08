@@ -5,16 +5,11 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 @Entity
 @Table(name = "modifier_options")
 @Getter @Setter
-public class ModifierOption {
-
-    @Id
-    @GeneratedValue
-    private UUID id;
+public class ModifierOption extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)

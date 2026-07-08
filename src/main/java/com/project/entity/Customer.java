@@ -6,16 +6,11 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "customers")
 @Getter @Setter
-public class Customer {
-
-    @Id
-    @GeneratedValue
-    private UUID id;
+public class Customer extends BaseEntity {
 
     @Column(nullable = false)
     private String name;

@@ -4,8 +4,7 @@ CREATE TABLE modifier_groups (
     name VARCHAR(255) NOT NULL,
     is_required BOOLEAN NOT NULL DEFAULT false,
     min_select INT NOT NULL DEFAULT 0,
-    max_select INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    max_select INT
 );
 
 CREATE TABLE modifier_options (
