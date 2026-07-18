@@ -3,9 +3,9 @@ package com.project.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.util.ArrayList;
-import java.util.List;
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "order_items")
@@ -34,7 +34,7 @@ public class OrderItem extends BaseEntity {
     private BigDecimal lineTotal;
 
     @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderItemModifier> modifiers = new ArrayList<>();
+    private Set<OrderItemModifier> modifiers = new HashSet<>();
 
     public void addModifier(OrderItemModifier modifier) {
         modifiers.add(modifier);

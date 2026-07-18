@@ -16,5 +16,5 @@ public record CustomerRequestDto (
         CustomerStatus status,
 
         @Valid
-        List<AddressDto> addresses
+        List<AddressRequestDto> addresses
 ) {}

@@ -5,6 +5,8 @@ import com.project.entity.Category;
 import com.project.entity.Product;
 import com.project.entity.ProductImage;
 import com.project.entity.Store;
+import com.project.exception.ConflictException;
+import com.project.exception.ResourceNotFoundException;
 import com.project.repository.CategoryRepository;
 import com.project.repository.ProductRepository;
 import com.project.repository.StoreRepository;
@@ -25,19 +27,33 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
     private final FileStorageService fileStorageService;
+    private final StoreAccessService storeAccessService;
 
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getProducts(String storeSlug, String categorySlug, Boolean pauseOrdering) {
-        return productRepository.findProductWithFilters(storeSlug, categorySlug, pauseOrdering).stream().map(this::toResponseDto).toList();
-    }
+    public List<ProductResponseDto> getProducts(
+            String storeSlug,
+            String categorySlug,
+            Boolean pauseOrdering
+    ) {
+        checkStoreAccess(storeSlug);
 
+        return productRepository.findProductWithFilters(
+                        storeSlug,
+                        categorySlug,
+                        pauseOrdering
+                ).stream()
+                .map(this::toResponseDto)
+                .toList();
+    }
     @Transactional(readOnly = true)
     public ProductResponseDto getProductById(String storeSlug, UUID id) {
+        checkStoreAccess(storeSlug);
+
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Product does not belong to this store");
+            throw new ConflictException("Product does not belong to this store");
         }
 
         return toResponseDto(product);
@@ -45,20 +61,22 @@ public class ProductService {
 
     @Transactional
     public ProductResponseDto createProduct(String storeSlug, ProductDto dto) {
+        checkStoreAccess(storeSlug);
+
         Store store = storeRepository.findBySlug(storeSlug)
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
 
         Category category = null;
         if(dto.getCategoryId() != null) {
             category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
             if(!category.getStore().getId().equals(store.getId())) {
-                throw new IllegalArgumentException("Selected category belongs to another store");
+                throw new ConflictException("Selected category belongs to another store");
             }
         }
 
         if (productRepository.existsByStoreIdAndName(store.getId(), dto.getName())) {
-            throw new IllegalArgumentException("Product with this name already exists in this store");
+            throw new ConflictException("Product with this name already exists in this store");
         }
         Product product = new Product();
         product.setStore(store);
@@ -90,24 +108,26 @@ public class ProductService {
 
     @Transactional
     public ProductResponseDto updateProduct(String storeSlug, UUID id, ProductDto dto) {
+        checkStoreAccess(storeSlug);
+
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Product does not belong to this store");
+            throw new ConflictException("Product does not belong to this store");
         }
 
         if (!product.getName().equals(dto.getName()) &&
                 productRepository.existsByStoreIdAndName(product.getStore().getId(), dto.getName())) {
-            throw new IllegalArgumentException("Product with this name already exists in this store");
+            throw new ConflictException("Product with this name already exists in this store");
         }
 
         if(dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
             if(!category.getStore().getId().equals(product.getStore().getId())) {
-                throw new IllegalArgumentException("Selected category belongs to another store");
+                throw new ConflictException("Selected category belongs to another store");
             }
             product.setCategory(category);
         } else {
@@ -120,11 +140,13 @@ public class ProductService {
 
     @Transactional
     public void deleteProduct(String storeSlug, UUID id) {
+        checkStoreAccess(storeSlug);
+
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Product does not belong to this store");
+            throw new ConflictException("Product does not belong to this store");
         }
 
         productRepository.delete(product);
@@ -144,11 +166,13 @@ public class ProductService {
 
     @Transactional
     public ProductResponseDto uploadImages(String storeSlug, UUID productId, List<MultipartFile> files) {
+        checkStoreAccess(storeSlug);
+
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Product does not belong to this store");
+            throw new ConflictException("Product does not belong to this store");
         }
 
         int currentMaxOrder = product.getImages().stream()
@@ -169,7 +193,11 @@ public class ProductService {
         }
         return toResponseDto(productRepository.save(product));
     }
-
+    private void checkStoreAccess(String storeSlug) {
+        if (!storeAccessService.hasStoreAccess(storeSlug, "ROLE_MERCHANT")) {
+            throw new SecurityException("No access to this store");
+        }
+    }
     private ProductResponseDto toResponseDto(Product product) {
         List<ProductImageDto> imageDtos = product.getImages().stream()
                 .map(image -> new ProductImageDto(

@@ -2,7 +2,9 @@ package com.project.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record AddressDto(
+import java.util.UUID;
+
+public record AddressRequestDto(
 
         @NotBlank(message = "Address is required")
         String addressLine,

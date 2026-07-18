@@ -1,5 +1,5 @@
 CREATE TABLE orders (
-                        id UUID PRIMARY KEY,
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
                         store_id UUID NOT NULL,
                         customer_id UUID NOT NULL,
@@ -18,6 +18,8 @@ CREATE TABLE orders (
                         discount_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         total NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         currency VARCHAR(10) NOT NULL DEFAULT 'KRW',
+                        created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
                         CONSTRAINT fk_orders_store
                             FOREIGN KEY (store_id) REFERENCES stores(id),

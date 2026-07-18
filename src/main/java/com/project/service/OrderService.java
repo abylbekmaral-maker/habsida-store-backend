@@ -26,6 +26,10 @@ import com.project.repository.ModifierOptionRepository;
 import com.project.entity.OrderStatus;
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.HashMap;
+import java.util.Map;
+import com.project.exception.ResourceNotFoundException;
+import com.project.exception.ConflictException;
 
 @Service
 @RequiredArgsConstructor
@@ -43,10 +47,10 @@ public class OrderService {
     public OrderResponseDto createOrder(OrderRequestDto request) {
 
         Store store = storeRepository.findById(request.storeId())
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
 
         Customer customer = customerRepository.findById(request.customerId())
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
 
         Order order = new Order();
@@ -56,16 +60,39 @@ public class OrderService {
         order.setType(request.type());
         order.setCustomerNote(request.customerNote());
 
-        order.setDeliveryFee(request.deliveryFee() != null ? request.deliveryFee() : BigDecimal.ZERO);
-        order.setDiscountTotal(request.discountTotal() != null ? request.discountTotal() : BigDecimal.ZERO);
-
         BigDecimal subtotal = BigDecimal.ZERO;
 
         for (OrderItemRequestDto itemRequest : request.items()) {
 
             Product product = productRepository.findById(itemRequest.productId())
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
+            if (!product.getStore().getId().equals(store.getId())) {
+                throw new ConflictException("Product does not belong to this store");
+            }
+            if (product.isPauseOrdering()) {
+                throw new ConflictException("Ordering is paused for this product");
+            }
+            if (itemRequest.quantity() < product.getMinQuantity()) {
+                throw new ConflictException(
+                        "Quantity is less than the minimum allowed"
+                );
+            }
+
+            if (product.getMaxQuantity() != null
+                    && itemRequest.quantity() > product.getMaxQuantity()) {
+                throw new ConflictException(
+                        "Quantity exceeds the maximum allowed"
+                );
+            }
+
+            if (itemRequest.quantity() > product.getStock()) {
+                throw new ConflictException(
+                        "Not enough product in stock"
+                );
+            }
+            product.setStock(product.getStock() - itemRequest.quantity());
+            
             OrderItem item = new OrderItem();
 
             item.setOrder(order);
@@ -79,12 +106,29 @@ public class OrderService {
             BigDecimal lineTotal =
                     product.getPrice()
                             .multiply(BigDecimal.valueOf(itemRequest.quantity()));
+            Map<UUID, Integer> selectedByGroup = new HashMap<>();
             if (itemRequest.modifiers() != null) {
                 for (OrderItemModifierRequestDto modifierRequest : itemRequest.modifiers()) {
 
                     ModifierOption modifierOption = modifierOptionRepository.findById(modifierRequest.modifierOptionId())
-                            .orElseThrow(() -> new IllegalArgumentException("Modifier option not found"));
+                            .orElseThrow(() -> new ResourceNotFoundException("Modifier option not found"));
 
+                    if (!modifierOption.getGroup().getStore().getId().equals(store.getId())) {
+                        throw new ConflictException("Modifier option does not belong to this store");
+
+                    }
+                    boolean groupLinkedToProduct = product.getModifierGroups().stream()
+                            .anyMatch(group ->
+                                    group.getId().equals(modifierOption.getGroup().getId())
+                            );
+
+                    if (!groupLinkedToProduct) {
+                        throw new ConflictException(
+                                "Modifier option is not available for this product"
+                        );
+                    }
+                    UUID groupId = modifierOption.getGroup().getId();
+                    selectedByGroup.merge(groupId, 1, Integer::sum);
                     OrderItemModifier modifier = new OrderItemModifier();
 
                     modifier.setOrderItem(item);
@@ -100,7 +144,27 @@ public class OrderService {
                     );
                 }
             }
+            for (var group : product.getModifierGroups()) {
 
+                int selectedCount = selectedByGroup.getOrDefault(group.getId(), 0);
+
+                int minimumRequired = group.isRequired()
+                        ? Math.max(group.getMinSelect(), 1)
+                        : group.getMinSelect();
+
+                if (selectedCount < minimumRequired) {
+                    throw new ConflictException(
+                            "Not enough modifier options selected for group: " + group.getName()
+                    );
+                }
+
+                if (group.getMaxSelect() != null
+                        && selectedCount > group.getMaxSelect()) {
+                    throw new ConflictException(
+                            "Too many modifier options selected for group: " + group.getName()
+                    );
+                }
+            }
             item.setLineTotal(lineTotal);
 
             order.addItem(item);
@@ -131,7 +195,7 @@ public class OrderService {
     public OrderResponseDto acceptOrder(UUID orderId) {
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
         if (!storeAccessService.hasStoreAccess(
                 order.getStore().getSlug(),
@@ -140,7 +204,7 @@ public class OrderService {
             throw new SecurityException("No access to this store");
         }
         if (order.getStatus() != OrderStatus.NEW) {
-            throw new IllegalArgumentException("Only NEW orders can be accepted");
+            throw new ConflictException("Only NEW orders can be accepted");
         }
 
         order.setStatus(OrderStatus.ACCEPTED);
@@ -154,7 +218,7 @@ public class OrderService {
     public OrderResponseDto rejectOrder(UUID orderId, String reason) {
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         if (!storeAccessService.hasStoreAccess(
                 order.getStore().getSlug(),
                 "ROLE_MERCHANT"
@@ -162,7 +226,7 @@ public class OrderService {
             throw new SecurityException("No access to this store");
         }
         if (order.getStatus() != OrderStatus.NEW) {
-            throw new IllegalArgumentException("Only NEW orders can be rejected");
+            throw new ConflictException("Only NEW orders can be rejected");
         }
         order.setStatus(OrderStatus.REJECTED);
         order.setRejectedAt(LocalDateTime.now());
@@ -172,11 +236,57 @@ public class OrderService {
 
         return toResponse(saved);
     }
+    @Transactional
+    public OrderResponseDto startOrder(UUID orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (!storeAccessService.hasStoreAccess(
+                order.getStore().getSlug(),
+                "ROLE_MERCHANT"
+        )) {
+            throw new SecurityException("No access to this store");
+        }
+
+        if (order.getStatus() != OrderStatus.ACCEPTED) {
+            throw new ConflictException(
+                    "Only ACCEPTED orders can be moved to IN_PROGRESS"
+            );
+        }
+
+        order.setStatus(OrderStatus.IN_PROGRESS);
+
+        return toResponse(orderRepository.save(order));
+    }
+    @Transactional
+    public OrderResponseDto completeOrder(UUID orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (!storeAccessService.hasStoreAccess(
+                order.getStore().getSlug(),
+                "ROLE_MERCHANT"
+        )) {
+            throw new SecurityException("No access to this store");
+        }
+
+        if (order.getStatus() != OrderStatus.IN_PROGRESS) {
+            throw new ConflictException(
+                    "Only IN_PROGRESS orders can be completed"
+            );
+        }
+
+        order.setStatus(OrderStatus.COMPLETED);
+
+        return toResponse(orderRepository.save(order));
+    }
 
     @Transactional(readOnly = true)
     public List<OrderResponseDto> getNewOrders(UUID storeId) {
         Store store = storeRepository.findById(storeId)
-            .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
 
         if (!storeAccessService.hasStoreAccess(store.getSlug(), "ROLE_MERCHANT")) {
             throw new SecurityException("No access to this store");

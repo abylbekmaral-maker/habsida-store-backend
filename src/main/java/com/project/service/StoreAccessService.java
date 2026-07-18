@@ -21,12 +21,29 @@ public class StoreAccessService {
 
     @Transactional (readOnly = true)
     public boolean hasStoreAccess(String storeSlug, String roleName) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
         if (authentication == null || !authentication.isAuthenticated()) {
             return false;
         }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority ->
+                        authority.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
+            return true;
+        }
+
         String username = authentication.getName();
 
-        return userStoreAccessRepository.existsByUserUsernameAndStoreSlugAndRoleName(username, storeSlug, roleName);
+        return userStoreAccessRepository
+                .existsByUserUsernameAndStoreSlugAndRoleName(
+                        username,
+                        storeSlug,
+                        roleName
+                );
     }
 }

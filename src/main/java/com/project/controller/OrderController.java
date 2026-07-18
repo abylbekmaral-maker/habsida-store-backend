@@ -6,6 +6,7 @@ import java.util.List;
 import com.project.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -43,5 +44,16 @@ public class OrderController {
     ) {
         return orderService.getNewOrders(storeId);
     }
-
+    @PatchMapping("/{orderId}/start")
+    public OrderResponseDto startOrder(
+            @PathVariable UUID orderId
+    ) {
+        return orderService.startOrder(orderId);
+    }
+    @PatchMapping("/{orderId}/complete")
+    public OrderResponseDto completeOrder(
+            @PathVariable UUID orderId
+    ) {
+        return orderService.completeOrder(orderId);
+    }
 }

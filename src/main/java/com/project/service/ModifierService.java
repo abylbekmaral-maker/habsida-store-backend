@@ -8,6 +8,8 @@ import com.project.entity.ModifierGroup;
 import com.project.entity.ModifierOption;
 import com.project.entity.Product;
 import com.project.entity.Store;
+import com.project.exception.ConflictException;
+import com.project.exception.ResourceNotFoundException;
 import com.project.repository.ModifierGroupRepository;
 import com.project.repository.ProductRepository;
 import com.project.repository.StoreRepository;
@@ -25,11 +27,14 @@ public class ModifierService {
     private final StoreRepository storeRepository;
     private final ProductRepository productRepository;
     private final ModifierGroupRepository modifierGroupRepository;
+    private final StoreAccessService storeAccessService;
 
     @Transactional
     public ModifierGroupResponseDto createModifierGroup(String storeSlug, ModifierGroupDto dto) {
+        checkStoreAccess(storeSlug);
+
         Store store = storeRepository.findBySlug(storeSlug)
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
 
         ModifierGroup group = new ModifierGroup();
         group.setStore(store);
@@ -51,11 +56,13 @@ public class ModifierService {
 
     @Transactional
     public void deleteModifierGroup(String storeSlug, UUID groupId) {
+        checkStoreAccess(storeSlug);
+
         ModifierGroup group = modifierGroupRepository.findById(groupId)
-                .orElseThrow(() -> new IllegalArgumentException("Modifier Group not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Modifier Group not found"));
 
         if (!group.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Group does not belong to this store");
+            throw new ConflictException("Group does not belong to this store");
         }
 
         modifierGroupRepository.delete(group);
@@ -63,10 +70,17 @@ public class ModifierService {
 
     @Transactional
     public void linkModifierGroupToProduct(String storeSlug, UUID productId, UUID groupId) {
+        checkStoreAccess(storeSlug);
+
         Product product = getValidProduct(storeSlug, productId);
         ModifierGroup group = getValidGroup(storeSlug, groupId);
 
-        if (!product.getModifierGroups().contains(group)) {
+        boolean alreadyLinked = product.getModifierGroups().stream()
+                .anyMatch(existingGroup ->
+                        existingGroup.getId().equals(group.getId())
+                );
+
+        if (!alreadyLinked) {
             product.addModifierGroup(group);
             productRepository.save(product);
         }
@@ -74,46 +88,59 @@ public class ModifierService {
 
     @Transactional
     public void unlinkModifierGroupFromProduct(String storeSlug, UUID productId, UUID groupId) {
+        checkStoreAccess(storeSlug);
+
         Product product = getValidProduct(storeSlug, productId);
         ModifierGroup group = getValidGroup(storeSlug, groupId);
 
-        if (product.getModifierGroups().contains(group)) {
-            product.removeModifierGroup(group);
-            productRepository.save(product);
-        }
+        product.getModifierGroups().stream()
+                .filter(existingGroup ->
+                        existingGroup.getId().equals(group.getId())
+                )
+                .findFirst()
+                .ifPresent(existingGroup -> {
+                    product.removeModifierGroup(existingGroup);
+                    productRepository.save(product);
+                });
     }
 
     private Product getValidProduct(String storeSlug, UUID productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
         if (!product.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Product does not belong to this store");
+            throw new  ConflictException("Product does not belong to this store");
         }
         return product;
     }
 
     private ModifierGroup getValidGroup(String storeSlug, UUID groupId) {
         ModifierGroup group = modifierGroupRepository.findById(groupId)
-                .orElseThrow(() -> new IllegalArgumentException("Modifier Group not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Modifier Group not found"));
         if (!group.getStore().getSlug().equals(storeSlug)) {
-            throw new IllegalArgumentException("Group does not belong to this store");
+            throw new  ConflictException("Group does not belong to this store");
         }
         return group;
     }
 
     @Transactional(readOnly = true)
     public List<ModifierGroupResponseDto> getModifierGroupsByStore(String storeSlug) {
+        checkStoreAccess(storeSlug);
+
         return modifierGroupRepository.findAllByStoreSlug(storeSlug).stream()
                 .map(this::toResponseDto)
                 .toList();
     }
     @Transactional(readOnly = true)
     public ModifierGroupResponseDto getModifierGroupById(String storeSlug, UUID groupId) {
+        checkStoreAccess(storeSlug);
+
         return toResponseDto(getValidGroup(storeSlug, groupId));
     }
 
     @Transactional
     public ModifierGroupResponseDto updateModifierGroup(String storeSlug, UUID groupId, ModifierGroupDto dto) {
+        checkStoreAccess(storeSlug);
+
         ModifierGroup group = getValidGroup(storeSlug, groupId);
 
         group.setName(dto.name());
@@ -133,7 +160,11 @@ public class ModifierService {
         }
         return toResponseDto(modifierGroupRepository.save(group));
     }
-
+    private void checkStoreAccess(String storeSlug) {
+        if (!storeAccessService.hasStoreAccess(storeSlug, "ROLE_MERCHANT")) {
+            throw new SecurityException("No access to this store");
+        }
+    }
     public ModifierGroupResponseDto toResponseDto(ModifierGroup group) {
         List<ModifierOptionResponseDto> optionDtos = group.getOptions().stream()
                 .map(opt -> new ModifierOptionResponseDto(opt.getId(), opt.getName(), opt.getPrice()))

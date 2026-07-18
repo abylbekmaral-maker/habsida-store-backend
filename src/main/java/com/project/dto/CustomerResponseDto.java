@@ -10,5 +10,5 @@ public record CustomerResponseDto(
         String name,
         String phone,
         CustomerStatus status,
-        List<AddressDto> addresses
+        List<AddressResponseDto> addresses
 ) {}

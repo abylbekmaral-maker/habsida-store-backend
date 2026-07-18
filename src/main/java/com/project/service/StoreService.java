@@ -4,6 +4,8 @@ import com.project.dto.CreateStoreRequest;
 import com.project.dto.StoreResponseDto;
 import com.project.entity.Store;
 import com.project.entity.User;
+import com.project.exception.ConflictException;
+import com.project.exception.ResourceNotFoundException;
 import com.project.repository.StoreRepository;
 import com.project.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +26,10 @@ public class StoreService {
     @Transactional
     public StoreResponseDto createStore(CreateStoreRequest request) {
         if (storeRepository.existsBySlug(request.getSlug())) {
-            throw new IllegalArgumentException("Store with this slug already exists");
+            throw new ConflictException("Store with this slug already exists");
         }
         User owner = userRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new IllegalArgumentException("Owner not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Owner not found"));
 
         Store store = new Store();
         store.setName(request.getName());
@@ -47,14 +49,24 @@ public class StoreService {
 
     @Transactional(readOnly = true)
     public StoreResponseDto getStoreForMerchant(UUID storeId, String username) {
+
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+
+        boolean isMerchant = user.getRoles().stream()
+                .anyMatch(role -> role.getName().equals("ROLE_MERCHANT"));
+
+        if (!isMerchant) {
+            throw new SecurityException(
+                    "This endpoint is available only for merchants"
+            );
+        }
 
         if (!storeAccessService.hasAccess(user, store)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new SecurityException("No access to this store");
         }
 
         return toResponseDto(store);

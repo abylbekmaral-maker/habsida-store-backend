@@ -4,7 +4,9 @@ CREATE TABLE categories (
     slug VARCHAR(255) NOT NULL,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     CONSTRAINT uk_store_category_name UNIQUE (store_id, name),
-    CONSTRAINT uk_store_category_slug UNIQUE (store_id, slug)
+    CONSTRAINT uk_store_category_slug UNIQUE (store_id, slug),
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE products (
@@ -19,5 +21,9 @@ CREATE TABLE products (
     max_quantity INT NOT NULL,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
-    CONSTRAINT uk_product_store_name UNIQUE (store_id, name)
+    CONSTRAINT uk_product_store_name UNIQUE (store_id, name),
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE products ALTER COLUMN max_quantity DROP NOT NULL;
