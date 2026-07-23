@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import com.project.security.JwtTokenProvider;
 import com.project.security.CustomUserDetailsService;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,8 +80,10 @@ class OrderControllerTest {
                 .thenReturn(List.of());
 
         mockMvc.perform(
-                get("/api/orders/store/{storeId}/new", storeId)
-        ).andExpect(status().isOk());
+                get("/api/orders/store/{storeId}/new", storeId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(0));
 
         verify(orderService).getNewOrders(storeId);
     }
