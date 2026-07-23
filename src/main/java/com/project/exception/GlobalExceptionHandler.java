@@ -1,78 +1,101 @@
 package com.project.exception;
 
+import com.project.dto.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.AccessDeniedException;
 
-import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(SecurityException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public ApiErrorResponse handleSecurityException(SecurityException ex) {
-        return new ApiErrorResponse(
+    public ErrorResponse handleSecurityException(SecurityException ex, HttpServletRequest request) {
+        return new ErrorResponse(
+                LocalDateTime.now(),
                 403,
                 "Forbidden",
-                ex.getMessage()
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
         );
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ApiErrorResponse handleResourceNotFoundException(
-            ResourceNotFoundException ex
+    public ErrorResponse handleResourceNotFoundException(
+            ResourceNotFoundException ex, HttpServletRequest request
     ) {
-        return new ApiErrorResponse(
+        return new ErrorResponse(
+                LocalDateTime.now(),
                 404,
                 "Not Found",
-                ex.getMessage()
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
         );
     }
 
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ApiErrorResponse handleConflictException(ConflictException ex) {
-        return new ApiErrorResponse(
+    public ErrorResponse handleConflictException(ConflictException ex, HttpServletRequest request) {
+        return new ErrorResponse(
+                LocalDateTime.now(),
                 409,
                 "Conflict",
-                ex.getMessage()
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
         );
     }
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public ApiErrorResponse handleAccessDeniedException(AccessDeniedException ex) {
-        return new ApiErrorResponse(
+    public ErrorResponse handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
+        return new ErrorResponse(
+                LocalDateTime.now(),
                 403,
                 "Forbidden",
-                "Access denied"
-        );
-    }
-
-    @ExceptionHandler(RuntimeException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiErrorResponse handleRuntimeException(RuntimeException ex) {
-        return new ApiErrorResponse(
-                500,
-                "Internal Server Error",
-                "Unexpected server error"
-
+                ex.getMessage(),
+                request.getRequestURI(),
+                null
         );
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ApiErrorResponse handleValidationException(MethodArgumentNotValidException ex) {
+    public ErrorResponse handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
 
-        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-        return new ApiErrorResponse(
+        List<ErrorResponse.FieldErrorDto> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> new ErrorResponse.FieldErrorDto(error.getField(), error.getDefaultMessage()))
+                .toList();
+        return new ErrorResponse(
+                LocalDateTime.now(),
                 400,
                 "Validation Error",
-                errorMessage
+                "Input data validation error",
+                request.getRequestURI(),
+                fieldErrors
+        );
+    }
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleAllUncaughtException(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled exception occurred: ", ex);
+        return new ErrorResponse(
+                LocalDateTime.now(),
+                500,
+                "Internal Server Error",
+                "Unexpected server error",
+                request.getRequestURI(),
+                null
         );
     }
 }

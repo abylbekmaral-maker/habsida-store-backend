@@ -6,6 +6,9 @@ import com.project.service.ModifierService;
 import com.project.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,12 +26,15 @@ public class ProductController {
     private final ModifierService modifierService;
 
     @GetMapping
-    public ResponseEntity<List<ProductResponseDto>> getAllProducts(
+    public ResponseEntity<Page<ProductResponseDto>> getAllProducts(
             @PathVariable String storeSlug,
             @RequestParam(required = false) String categorySlug,
-            @RequestParam(required = false) Boolean pauseOrdering) {
-     List<ProductResponseDto> products = productService.getProducts(storeSlug, categorySlug, pauseOrdering);
-     return ResponseEntity.ok(products);
+            @RequestParam(required = false) Boolean pauseOrdering,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page,size);
+        Page<ProductResponseDto> products = productService.getProducts(storeSlug, categorySlug, pauseOrdering, pageable);
+        return ResponseEntity.ok(products);
     }
 
     @GetMapping("/{id}")
