@@ -38,7 +38,9 @@ CREATE TABLE store_delivery_areas (
                                       CONSTRAINT fk_delivery_area_settings
                                           FOREIGN KEY (delivery_settings_id)
                                               REFERENCES store_delivery_settings(id)
-                                              ON DELETE CASCADE
+                                              ON DELETE CASCADE,
+                                      CONSTRAINT uq_delivery_settings_city_area 
+                                      UNIQUE (delivery_settings_id, city, area_name)
 );
 
 CREATE TABLE store_delivery_restrictions (
@@ -59,3 +61,9 @@ CREATE TABLE store_delivery_restrictions (
                                                      REFERENCES store_delivery_settings(id)
                                                      ON DELETE CASCADE
 );
+
+                                              CREATE INDEX idx_delivery_areas_settings_id 
+                                                  ON store_delivery_areas(delivery_settings_id);
+
+                                              CREATE INDEX idx_delivery_restr_settings_id 
+                                                  ON store_delivery_restrictions(delivery_settings_id);
