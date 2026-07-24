@@ -38,7 +38,12 @@ public class ProductService {
             Boolean pauseOrdering,
             Pageable pageable
     ) {
-
+        storeRepository.findBySlug(storeSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+        if (categorySlug != null && !categorySlug.isBlank()) {
+            categoryRepository.findByStoreSlugAndSlug(storeSlug, categorySlug)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        }
         return productRepository.findProductWithFilters(
                         storeSlug,
                         categorySlug,

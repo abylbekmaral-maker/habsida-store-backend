@@ -6,10 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Set;
 
 @Component
 @Profile("dev")
@@ -22,6 +24,8 @@ public class DevDataSeeder implements CommandLineRunner {
     private final ProductRepository productRepository;
     private final ModifierGroupRepository modifierGroupRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
     @Override
     @Transactional
@@ -33,11 +37,14 @@ public class DevDataSeeder implements CommandLineRunner {
 
         log.info("Starting database seeding for DEV environment...");
 
+        Role merchantRole = roleRepository.findByName("ROLE_MERCHANT")
+                .orElseThrow();
+
         User devUser = new User();
         devUser.setUsername("dev");
         devUser.setEmail("devUser@gmail.com");
-        devUser.setPassword("devUser");
-
+        devUser.setPassword(passwordEncoder.encode("devUser"));
+        devUser.setRoles(Set.of(merchantRole));
         devUser = userRepository.save(devUser);
 
 
