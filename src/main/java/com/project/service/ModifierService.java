@@ -124,6 +124,8 @@ public class ModifierService {
 
     @Transactional(readOnly = true)
     public List<ModifierGroupResponseDto> getModifierGroupsByStore(String storeSlug) {
+        storeRepository.findBySlug(storeSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
         checkStoreAccess(storeSlug);
 
         return modifierGroupRepository.findAllByStoreSlug(storeSlug).stream()
@@ -132,6 +134,9 @@ public class ModifierService {
     }
     @Transactional(readOnly = true)
     public ModifierGroupResponseDto getModifierGroupById(String storeSlug, UUID groupId) {
+        storeRepository.findBySlug(storeSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+
         checkStoreAccess(storeSlug);
 
         return toResponseDto(getValidGroup(storeSlug, groupId));
