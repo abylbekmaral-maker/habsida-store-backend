@@ -2,28 +2,23 @@ package com.project.service;
 
 import com.project.dto.OrderRequestDto;
 import com.project.dto.OrderResponseDto;
-import com.project.entity.Customer;
-import com.project.entity.Order;
-import com.project.entity.Store;
-import com.project.repository.CustomerRepository;
-import com.project.repository.OrderRepository;
-import com.project.repository.StoreRepository;
+import com.project.entity.*;
+import com.project.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.project.dto.OrderItemRequestDto;
-import com.project.entity.OrderItem;
-import com.project.entity.Product;
-import com.project.repository.ProductRepository;
+
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.UUID;
 import com.project.dto.OrderItemResponseDto;
 import java.util.List;
 import com.project.dto.OrderItemModifierRequestDto;
 import com.project.dto.OrderItemModifierResponseDto;
-import com.project.entity.ModifierOption;
-import com.project.entity.OrderItemModifier;
-import com.project.repository.ModifierOptionRepository;
-import com.project.entity.OrderStatus;
+
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
@@ -42,6 +37,10 @@ public class OrderService {
     private final ModifierOptionRepository modifierOptionRepository;
     private final StoreAccessService storeAccessService;
     private final OrderTotalCalculator orderTotalCalculator;
+    private final StoreDeliveryAreaRepository storeDeliveryAreaRepository;
+    private final StoreDeliverySettingsRepository storeDeliverySettingsRepository;
+    private final StoreHourRepository storeHourRepository;
+    private final StoreDeliveryRestrictionRepository storeDeliveryRestrictionRepository;
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto request) {
@@ -52,13 +51,126 @@ public class OrderService {
         Customer customer = customerRepository.findById(request.customerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
+        StoreDeliveryArea deliveryArea = storeDeliveryAreaRepository.findById(request.deliveryAreaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Delivery area not found"));
 
+        StoreDeliverySettings deliverySettings = storeDeliverySettingsRepository
+                .findByStore(store)
+                .orElseThrow(() -> new ResourceNotFoundException("Delivery settings not found"));
+
+        ZoneId storeZone = (store.getTimezone() != null && !store.getTimezone().isBlank())
+        ? ZoneId.of(store.getTimezone())
+        : ZoneId.systemDefault();
+        
+        LocalTime nowTime = LocalTime.now(storeZone);
+        LocalDate nowDate = LocalDate.now(storeZone);
+
+        StoreHour storeHour = storeHourRepository
+            .findByStoreSlugAndDayOfWeek(store.getSlug(), nowDate.getDayOfWeek())
+            .orElseThrow(() -> new ConflictException("Store is closed today"));
+
+        if (storeHour.isClosed()) {
+            throw new ConflictException("Store is closed today");
+        }
+
+        if (storeHour.getOpenTime() != null
+                && nowTime.isBefore(storeHour.getOpenTime())) {
+            throw new ConflictException("Store is not open yet");
+        }
+
+        if (storeHour.getCloseTime() != null
+                && nowTime.isAfter(storeHour.getCloseTime())) {
+            throw new ConflictException("Store is already closed");
+        }
+
+        if (storeHour.getLastOrderCutoffTime() != null
+                && nowTime.isAfter(storeHour.getLastOrderCutoffTime())) {
+            throw new ConflictException("Last order cutoff time has passed");
+        }
+
+        boolean onBreak = storeHour.getBreaks().stream()
+                .anyMatch(storeBreak ->
+                        !nowTime.isBefore(storeBreak.getStartTime())
+                                && nowTime.isBefore(storeBreak.getEndTime())
+                );
+
+        if (onBreak) {
+            throw new ConflictException("Store is currently on a break");
+        }
+
+        if (!deliverySettings.isDeliveryEnabled()) {
+            throw new ConflictException("Delivery is disabled for this store");
+        }
+
+        DeliveryType configuredType = deliverySettings.getDeliveryType();
+        DeliveryType requestedType = request.deliveryMethod();
+
+        if (configuredType != DeliveryType.BOTH && configuredType != requestedType) {
+            throw new ConflictException(
+                    "Selected delivery method is not supported by this store"
+            );
+        }
+
+        if (!deliveryArea.getDeliverySettings().getStore().getId().equals(store.getId())) {
+            throw new ConflictException("Delivery area does not belong to this store");
+        }
+        if (!deliveryArea.isActive()) {
+            throw new ConflictException("Delivery area is not active");
+        }
+
+        String requestCity = request.deliveryCity() != null ? request.deliveryCity().trim() : "";
+        String requestArea = request.deliveryAreaName() != null ? request.deliveryAreaName().trim() : "";
+        
+        if (!deliveryArea.getCity().equalsIgnoreCase(requestCity)) {
+            throw new ConflictException(
+                    "Delivery address city does not match the selected delivery area"
+            );
+        }
+
+        if (!deliveryArea.getAreaName().equalsIgnoreCase(requestArea)) {
+            throw new ConflictException(
+                    "Delivery address area does not match the selected delivery area"
+            );
+        }
+        List<StoreDeliveryRestriction> restrictions = storeDeliveryRestrictionRepository
+                .findAllByDeliverySettings(deliverySettings)
+                .stream()
+                .filter(StoreDeliveryRestriction::isActive)
+                .toList();
+        
+        for (StoreDeliveryRestriction restriction : restrictions) {
+
+            String type = restriction.getRestrictionType().trim().toLowerCase();
+            String value = restriction.getRestrictionValue();
+
+            if ("block_city".equals(type) && value != null && value.equalsIgnoreCase(requestCity)) {
+                throw new ConflictException("Delivery is restricted for this city");
+            }
+
+            if ("block_area".equals(type) && value != null && value.equalsIgnoreCase(requestArea)) {
+                throw new ConflictException("Delivery is restricted for this area");
+            }
+
+            if ("block_delivery_method".equals(type)
+                    && value != null
+                    && value.equalsIgnoreCase(request.deliveryMethod().name())) {
+                throw new ConflictException(
+                        "Selected delivery method is restricted"
+                );
+            }
+        }
         Order order = new Order();
 
         order.setStore(store);
         order.setCustomer(customer);
         order.setType(request.type());
         order.setCustomerNote(request.customerNote());
+        order.setRecipientName(request.recipientName());
+        order.setRecipientPhone(request.recipientPhone());
+        order.setDeliveryAddress(request.deliveryAddress());
+        order.setDeliveryInstructions(request.deliveryInstructions());
+        order.setDeliveryMethod(request.deliveryMethod().name());
+        order.setDeliveryAreaName(deliveryArea.getAreaName());
 
         BigDecimal subtotal = BigDecimal.ZERO;
 
@@ -171,25 +283,50 @@ public class OrderService {
 
             subtotal = subtotal.add(lineTotal);
         }
+        if (deliverySettings.getMinimumOrderAmount() != null
+            && subtotal.compareTo(deliverySettings.getMinimumOrderAmount()) < 0) {
+            throw new ConflictException("Minimum order amount is not reached");
+        }
+        for (StoreDeliveryRestriction restriction : restrictions) {
 
-        order.setSubtotal(subtotal);
+            String type = restriction.getRestrictionType().trim().toLowerCase();
+            String value = restriction.getRestrictionValue();
 
-        BigDecimal total = orderTotalCalculator.calculate(
-                subtotal,
-                order.getDeliveryFee(),
-                order.getDiscountTotal()
-        );
+            if ("min_order".equals(type) && value != null) {
 
-        order.setTotal(total);
+                BigDecimal restrictedMinimum;
 
-        order.setOrderNumber(
-                "ORD-" + UUID.randomUUID()
-        );
+                try {
+                    restrictedMinimum = new BigDecimal(value.trim());
+                } catch (NumberFormatException e) {
+                    throw new ConflictException(
+                            "Invalid minimum order restriction value"
+                    );
+                }
 
+                if (subtotal.compareTo(restrictedMinimum) < 0) {
+                    throw new ConflictException(
+                            "Restricted minimum order amount is not reached"
+                    );
+                }
+            }
+        }
 
-        Order saved = orderRepository.save(order);
+    order.setDeliveryFee(deliveryArea.getDeliveryFee());
+    order.setSubtotal(subtotal);
+    order.setDiscountTotal(BigDecimal.ZERO);
 
-        return toResponse(saved);
+    BigDecimal total = orderTotalCalculator.calculate(
+            subtotal,
+            order.getDeliveryFee(),
+            order.getDiscountTotal()
+    );
+
+    order.setTotal(total);
+    order.setOrderNumber("ORD-" + UUID.randomUUID());
+
+    Order saved = orderRepository.save(order);
+    return toResponse(saved);
     }
     @Transactional
     public OrderResponseDto acceptOrder(UUID orderId) {
@@ -336,6 +473,12 @@ public class OrderService {
                 order.getType(),
                 order.getStatus(),
                 order.getCustomerNote(),
+                order.getRecipientName(),
+                order.getRecipientPhone(),
+                order.getDeliveryAddress(),
+                order.getDeliveryInstructions(),
+                order.getDeliveryAreaName(),
+                order.getDeliveryMethod(),
                 order.getSubtotal(),
                 order.getDeliveryFee(),
                 order.getDiscountTotal(),
