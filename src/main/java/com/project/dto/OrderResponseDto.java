@@ -13,6 +13,7 @@ public record OrderResponseDto(
         String orderNumber,
         OrderType type,
         OrderStatus status,
+        String deliveryAddress,
         String customerNote,
         BigDecimal subtotal,
         BigDecimal deliveryFee,

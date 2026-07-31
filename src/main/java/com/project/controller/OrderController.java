@@ -3,9 +3,14 @@ package com.project.controller;
 import com.project.dto.OrderRequestDto;
 import com.project.dto.OrderResponseDto;
 import java.util.List;
+
+import com.project.entity.OrderStatus;
 import com.project.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
@@ -25,6 +30,20 @@ public class OrderController {
     ) {
         return orderService.createOrder(request);
     }
+
+    @GetMapping("/{orderId}")
+    public OrderResponseDto getOrderById(@PathVariable UUID orderId) {
+        return orderService.getOrderById(orderId);
+    }
+
+    @GetMapping("/track")
+    public OrderResponseDto trackOrder(
+            @RequestParam String orderNumber,
+            @RequestParam String phone
+    ) {
+        return orderService.trackOrder(orderNumber, phone);
+    }
+
     @PatchMapping("/{orderId}/accept")
     public OrderResponseDto acceptOrder(
             @PathVariable UUID orderId
@@ -44,6 +63,16 @@ public class OrderController {
     ) {
         return orderService.getNewOrders(storeId);
     }
+
+    @GetMapping("/store/{storeId}")
+    public Page<OrderResponseDto> getStoreOrders(
+            @PathVariable UUID storeId,
+            @RequestParam(required = false) OrderStatus status,
+            @PageableDefault(size = 20, sort = "createdAt")Pageable pageable
+            ) {
+        return orderService.getStoreOrders(storeId, status, pageable);
+    }
+
     @PatchMapping("/{orderId}/start")
     public OrderResponseDto startOrder(
             @PathVariable UUID orderId
@@ -55,5 +84,13 @@ public class OrderController {
             @PathVariable UUID orderId
     ) {
         return orderService.completeOrder(orderId);
+    }
+
+    @PatchMapping("/{orderId}/cancel")
+    public OrderResponseDto cancelOrder(
+            @PathVariable UUID orderId,
+            @RequestParam(required = false) String reason
+    ) {
+        return orderService.cancelOrder(orderId, reason);
     }
 }

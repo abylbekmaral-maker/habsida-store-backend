@@ -19,11 +19,20 @@ public class Order extends BaseEntity {
     private Store store;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
+
+    @Column(name = "customer_name", nullable = false)
+    private String customerName;
+
+    @Column(name = "customer_phone", nullable = false)
+    private String customerPhone;
 
     @Column(name = "order_number", nullable = false, unique = true)
     private String orderNumber;
+
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -41,6 +50,12 @@ public class Order extends BaseEntity {
 
     @Column(name = "reject_reason")
     private String rejectReason;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "cancel_reason")
+    private String cancelReason;
 
     @Column(name = "customer_note")
     private String customerNote;
