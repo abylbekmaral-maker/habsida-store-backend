@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import com.project.dto.OrderItemRequestDto;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -58,17 +57,17 @@ public class OrderService {
                 .findByStore(store)
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery settings not found"));
 
-        ZoneId storeZone = (store.getTimezone() != null && !store.getTimezone().isBlank())
-        ? ZoneId.of(store.getTimezone())
-        : ZoneId.systemDefault();
+        ZoneId storeZone = ZoneId.systemDefault();
         
         LocalTime nowTime = LocalTime.now(storeZone);
         LocalDate nowDate = LocalDate.now(storeZone);
 
         StoreHour storeHour = storeHourRepository
-            .findByStoreSlugAndDayOfWeek(store.getSlug(), nowDate.getDayOfWeek())
-            .orElseThrow(() -> new ConflictException("Store is closed today"));
-
+                .findByStoreSlugAndDayOfWeek(
+                        store.getSlug(),
+                        com.project.entity.DayOfWeek.valueOf(nowDate.getDayOfWeek().name())
+                )
+                .orElseThrow(() -> new ConflictException("Store is closed today"));
         if (storeHour.isClosed()) {
             throw new ConflictException("Store is closed today");
         }

@@ -28,9 +28,6 @@ public record OrderResponseDto(
         @Schema(description = "Current processing status of the order")
         OrderStatus status,
 
-        @Schema(description = "Current payment status of the order")
-        PaymentStatus paymentStatus,
-
         @Schema(description = "Customer notes or special instructions", example = "Please leave near the front door")
         String customerNote,
 

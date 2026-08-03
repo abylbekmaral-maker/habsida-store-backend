@@ -104,9 +104,6 @@ public class OrderPaymentService {
             payment.setPaidAt(LocalDateTime.now());
         }
 
-        order.setPaymentStatus(newStatus);
-
-
         return toResponse(orderPaymentRepository.save(payment));
     }
 

@@ -60,7 +60,6 @@ public class Order extends BaseEntity {
     @Column(name = "delivery_area_name", length = 150)
     private String deliveryAreaName;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "delivery_method", length = 30)
     private String deliveryMethod;
 
