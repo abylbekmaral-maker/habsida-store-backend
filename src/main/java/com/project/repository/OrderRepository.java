@@ -1,15 +1,25 @@
 package com.project.repository;
 
 import com.project.entity.Order;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
 import java.util.UUID;
 import com.project.entity.OrderStatus;
-import com.project.entity.Store;
 import org.springframework.data.jpa.repository.EntityGraph;
-import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, UUID> {
 
-    @EntityGraph(attributePaths= {"items", "items.modifiers"})
-    List<Order> findAllByStoreAndStatus(Store store, OrderStatus status);
+    Page<Order> findByStoreIdAndStatus(UUID storeId, OrderStatus status, Pageable pageable);
+
+    Page<Order> findByStoreId(UUID storeId, Pageable pageable);
+
+    Page<Order> findByCustomerId(UUID customerId, Pageable pageable);
+
+    Optional<Order> findByOrderNumberAndCustomerPhone(String orderNumber, String customerPhone);
+
+    @EntityGraph(attributePaths = {"items", "items.modifiers"})
+    Optional<Order> findWithDetailsById(UUID id);
 }

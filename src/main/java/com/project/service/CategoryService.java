@@ -29,8 +29,6 @@ public class CategoryService {
         Store store = storeRepository.findBySlug(storeSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
 
-        checkStoreAccess(storeSlug);
-
         return categoryRepository.findByStoreSlug(storeSlug)
                 .stream()
                 .map(this::toResponseDto)

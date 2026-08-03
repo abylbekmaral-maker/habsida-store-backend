@@ -5,9 +5,10 @@ import com.project.dto.OrderResponseDto;
 import com.project.entity.*;
 import com.project.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.project.dto.OrderItemRequestDto;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -17,7 +18,6 @@ import com.project.dto.OrderItemResponseDto;
 import java.util.List;
 import com.project.dto.OrderItemModifierRequestDto;
 import com.project.dto.OrderItemModifierResponseDto;
-
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
@@ -44,11 +44,21 @@ public class OrderService {
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto request) {
 
+        if (request.type() == OrderType.DELIVERY && (request.address() == null || request.address().isBlank())) {
+            throw new ConflictException("Delivery address is required for DELIVERY orders");
+        }
+
         Store store = storeRepository.findById(request.storeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
 
-        Customer customer = customerRepository.findById(request.customerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+        Customer customer;
+        if (request.customerId() != null) {
+            customer = customerRepository.findById(request.customerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+        } else {
+            customer = customerRepository.findByPhone(request.phone())
+                    .orElseGet(() -> createNewCustomer(request));
+        }
 
         StoreDeliveryArea deliveryArea = storeDeliveryAreaRepository.findById(request.deliveryAreaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery area not found"));
@@ -162,8 +172,14 @@ public class OrderService {
 
         order.setStore(store);
         order.setCustomer(customer);
+
+        String fullName = request.firstName() + (request.lastName() != null && !request.lastName().isBlank() ? " " + request.lastName() : "");
+        order.setCustomerName(fullName.trim());
+        order.setCustomerPhone(request.phone());
+
         order.setType(request.type());
         order.setCustomerNote(request.customerNote());
+
         order.setRecipientName(request.recipientName());
         order.setRecipientPhone(request.recipientPhone());
         order.setDeliveryAddress(request.deliveryAddress());
@@ -292,7 +308,6 @@ public class OrderService {
             String value = restriction.getRestrictionValue();
 
             if ("min_order".equals(type) && value != null) {
-
                 BigDecimal restrictedMinimum;
 
                 try {
@@ -320,13 +335,42 @@ public class OrderService {
             order.getDeliveryFee(),
             order.getDiscountTotal()
     );
+        order.setTotal(total);
 
-    order.setTotal(total);
-    order.setOrderNumber("ORD-" + UUID.randomUUID());
+        order.setOrderNumber(
+                "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase()
+        );
 
     Order saved = orderRepository.save(order);
     return toResponse(saved);
     }
+
+    private Customer createNewCustomer(OrderRequestDto request) {
+        Customer customer = new Customer();
+        String fullName = request.firstName();
+        if (request.lastName() != null && !request.lastName().isBlank()) {
+            fullName += " " + request.lastName();
+        }
+        customer.setName(fullName.trim());
+        customer.setPhone(request.phone());
+
+        if (request.address() != null && !request.address().isBlank()) {
+            CustomerAddress customerAddress = new CustomerAddress();
+            customerAddress.setAddressLine(request.address());
+            customerAddress.setDefault(true);
+
+            customer.addAddress(customerAddress);
+        }
+        return customerRepository.save(customer);
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponseDto trackOrder(String orderNumber, String phone) {
+        Order order = orderRepository.findByOrderNumberAndCustomerPhone(orderNumber, phone)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        return toResponse(order);
+    }
+
     @Transactional
     public OrderResponseDto acceptOrder(UUID orderId) {
 
@@ -364,12 +408,48 @@ public class OrderService {
         if (order.getStatus() != OrderStatus.NEW) {
             throw new ConflictException("Only NEW orders can be rejected");
         }
+
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            if (product != null) {
+                product.setStock(product.getStock() + item.getQuantity());
+            }
+        }
+
         order.setStatus(OrderStatus.REJECTED);
         order.setRejectedAt(LocalDateTime.now());
         order.setRejectReason(reason);
 
         Order saved = orderRepository.save(order);
 
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public OrderResponseDto cancelOrder(UUID orderId, String reason) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (order.getStatus() == OrderStatus.COMPLETED ||
+            order.getStatus() == OrderStatus.CANCELED  ||
+            order.getStatus() == OrderStatus.REJECTED) {
+            throw new ConflictException("Order cannot be cancelled in status: " + order.getStatus());
+        }
+        for (OrderItem item : order.getItems()) {
+            Product product = item.getProduct();
+            if (product != null) {
+                product.setStock(product.getStock() + item.getQuantity());
+            }
+        }
+
+        order.setStatus(OrderStatus.CANCELED);
+        order.setCancelledAt(LocalDateTime.now());
+        if (reason != null && !reason.isBlank()) {
+            order.setCancelReason(reason);
+        }
+
+        Order saved = orderRepository.save(order);
         return toResponse(saved);
     }
     @Transactional
@@ -427,10 +507,41 @@ public class OrderService {
         if (!storeAccessService.hasStoreAccess(store.getSlug(), "ROLE_MERCHANT")) {
             throw new SecurityException("No access to this store");
         }
-        return orderRepository.findAllByStoreAndStatus(store, OrderStatus.NEW)
+        return orderRepository.findByStoreIdAndStatus(storeId, OrderStatus.NEW, Pageable.unpaged())
+            .getContent()
             .stream()
             .map(this::toResponse)
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponseDto getOrderById(UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if(!storeAccessService.hasStoreAccess(order.getStore().getSlug(), "ROLE_MERCHANT")) {
+            throw new SecurityException("No access to this store");
+        }
+        return toResponse(order);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponseDto> getStoreOrders(UUID storeId, OrderStatus status, Pageable pageable) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+
+        if (!storeAccessService.hasStoreAccess(store.getSlug(), "ROLE_MERCHANT")) {
+            throw new SecurityException("No access to this store");
+        }
+
+        Page<Order> orders;
+        if(status != null) {
+            orders = orderRepository.findByStoreIdAndStatus(storeId, status, pageable);
+        } else {
+            orders = orderRepository.findByStoreId(storeId, pageable);
+        }
+
+        return orders.map(this::toResponse);
     }
 
     private OrderResponseDto toResponse(Order order) {
@@ -467,7 +578,7 @@ public class OrderService {
         return new OrderResponseDto(
                 order.getId(),
                 order.getStore().getId(),
-                order.getCustomer().getId(),
+                order.getCustomer() != null ? order.getCustomer().getId() : null,
                 order.getOrderNumber(),
                 order.getType(),
                 order.getStatus(),

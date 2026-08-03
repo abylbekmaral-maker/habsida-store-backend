@@ -3,6 +3,8 @@ CREATE TABLE orders (
 
                         store_id UUID NOT NULL,
                         customer_id UUID NOT NULL,
+                        customer_name VARCHAR(255) NOT NULL,
+                        customer_phone VARCHAR(50) NOT NULL,
 
                         order_number VARCHAR(100) NOT NULL UNIQUE,
                         type VARCHAR(30) NOT NULL,
@@ -11,6 +13,8 @@ CREATE TABLE orders (
                         accepted_at TIMESTAMP,
                         rejected_at TIMESTAMP,
                         reject_reason TEXT,
+                        cancelled_at TIMESTAMP,
+                        cancel_reason VARCHAR(255),
                         customer_note TEXT,
 
                         recipient_name VARCHAR(150),

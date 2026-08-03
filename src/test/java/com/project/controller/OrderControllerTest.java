@@ -53,20 +53,36 @@ class OrderControllerTest {
                 post("/api/orders")
                         .contentType("application/json")
                         .content("""
+                        {
+                        "storeId": "00000000-0000-0000-0000-000000000000",
+                        "customerId": null,
+                        "type": "DELIVERY",
+                         "customerNote": "note",
+
+                        "recipientName": "name",
+                        "recipientPhone": "number",
+                        "deliveryAddress": "address",
+                        "deliveryCity": "city",
+                        "deliveryAreaName": "area",
+                        "deliveryInstructions": "instructions",
+                        "deliveryAreaId": "00000000-0000-0000-0000-000000000001",
+                        "deliveryMethod": "OWN_COURIER",
+
+                        "items": [
                             {
-                              "storeId":"00000000-0000-0000-0000-000000000000",
-                              "customerId":"00000000-0000-0000-0000-000000000000",
-                              "type":"DELIVERY",
-                              "customerNote":"Test",
-                              "items":[
-                                {
-                                  "productId":"00000000-0000-0000-0000-000000000000",
-                                  "quantity":1,
-                                  "modifiers":[]
-                                }
-                              ]
+                            "productId": "00000000-0000-0000-0000-000000000000",
+                            "quantity": 1,
+                            "modifiers": []
                             }
-                            """)
+                        ],
+
+                        "firstName": "name",
+                        "lastName": "lastname",
+                        "phone": "number",
+                        "email": "email@gmail.com",
+                        "address": "address"
+                        }
+                    """)
         ).andExpect(status().isCreated());
 
         verify(orderService).createOrder(any());

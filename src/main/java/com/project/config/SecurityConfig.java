@@ -47,6 +47,14 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**"
                         ).permitAll()
+
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/stores/**",
+                                "/api/categories/**",
+                                "/api/products/**",
+                                "/api/modifiers/**",
+                                "/api/orders/track"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
                         .anyRequest().authenticated()
                 )
