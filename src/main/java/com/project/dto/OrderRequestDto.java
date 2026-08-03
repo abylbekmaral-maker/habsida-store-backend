@@ -1,5 +1,6 @@
 package com.project.dto;
 
+import com.project.entity.DeliveryType;
 import com.project.entity.OrderType;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +22,24 @@ public record OrderRequestDto(
         OrderType type,
 
         String customerNote,
+
+        @NotBlank
+        String recipientName,
+
+        @NotBlank
+        String recipientPhone,
+
+        String deliveryAddress,
+
+        String deliveryCity,
+
+        String deliveryAreaName,
+
+        String deliveryInstructions,
+
+        UUID deliveryAreaId,
+        
+        DeliveryType deliveryMethod,
 
         @Valid
         @NotEmpty

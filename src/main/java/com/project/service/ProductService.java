@@ -11,6 +11,8 @@ import com.project.repository.CategoryRepository;
 import com.project.repository.ProductRepository;
 import com.project.repository.StoreRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,24 +32,28 @@ public class ProductService {
     private final StoreAccessService storeAccessService;
 
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getProducts(
+    public Page<ProductResponseDto> getProducts(
             String storeSlug,
             String categorySlug,
-            Boolean pauseOrdering
+            Boolean pauseOrdering,
+            Pageable pageable
     ) {
-        checkStoreAccess(storeSlug);
-
+        storeRepository.findBySlug(storeSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+        if (categorySlug != null && !categorySlug.isBlank()) {
+            categoryRepository.findByStoreSlugAndSlug(storeSlug, categorySlug)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        }
         return productRepository.findProductWithFilters(
                         storeSlug,
                         categorySlug,
-                        pauseOrdering
-                ).stream()
-                .map(this::toResponseDto)
-                .toList();
+                        pauseOrdering,
+                        pageable
+                )
+                .map(this::toResponseDto);
     }
     @Transactional(readOnly = true)
     public ProductResponseDto getProductById(String storeSlug, UUID id) {
-        checkStoreAccess(storeSlug);
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
@@ -89,11 +95,11 @@ public class ProductService {
     @Transactional
     public Product createProduct(Store store, Category category, String name, BigDecimal price) {
         if (store == null) {
-            throw new IllegalArgumentException("Product must be linked to a store");
+            throw new ConflictException("Product must be linked to a store");
         }
         if (category != null) {
             if (!category.getStore().getId().equals(store.getId())) {
-                throw new IllegalArgumentException("Selected category belongs to another store");
+                throw new ConflictException("Selected category belongs to another store");
             }
         }
 

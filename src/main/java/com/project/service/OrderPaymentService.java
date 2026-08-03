@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -46,14 +47,51 @@ public class OrderPaymentService {
                 .orElseGet(() -> {
                     OrderPayment newPayment = new OrderPayment();
                     newPayment.setOrder(order);
+                    newPayment.setStatus(PaymentStatus.UNPAID);
                     return newPayment;
                 });
 
-        if (request.status() == PaymentStatus.REFUNDED
-                && payment.getStatus() != PaymentStatus.PAID) {
+        PaymentStatus currentStatus = payment.getStatus() != null ? payment.getStatus() : PaymentStatus.UNPAID;
+        PaymentStatus newStatus = request.status();
+
+        if (currentStatus == newStatus) {
             throw new ConflictException(
-                    "Only PAID payment can be refunded"
+                    "Payment already has status " + currentStatus
             );
+        }
+
+        boolean validTransition =
+                currentStatus == PaymentStatus.UNPAID
+                        && newStatus == PaymentStatus.PAID
+                        || currentStatus == PaymentStatus.PAID
+                        && newStatus == PaymentStatus.REFUNDED;
+
+        if (!validTransition) {
+            throw new ConflictException(
+                    "Invalid payment status transition: "
+                            + currentStatus + " -> " + newStatus
+            );
+        }
+        if (payment.getId() != null) {
+            if (payment.getMethod() != null && payment.getMethod() != request.method()) {
+                throw new ConflictException(
+                        "Payment method cannot be changed"
+                );
+            }
+
+            if (payment.getProvider() != null && !Objects.equals(payment.getProvider(), request.provider()
+            )) {
+                throw new ConflictException(
+                        "Payment provider cannot be changed"
+                );
+            }
+
+            if (payment.getTransactionId() != null && !Objects.equals(payment.getTransactionId(), request.transactionId()
+            )) {
+                throw new ConflictException(
+                        "Transaction ID cannot be changed"
+                );
+            }
         }
 
         payment.setMethod(request.method());
@@ -61,13 +99,9 @@ public class OrderPaymentService {
         payment.setProvider(request.provider());
         payment.setTransactionId(request.transactionId());
 
-        if (request.status() == PaymentStatus.PAID
+        if (newStatus == PaymentStatus.PAID
                 && payment.getPaidAt() == null) {
             payment.setPaidAt(LocalDateTime.now());
-        }
-
-        if (request.status() == PaymentStatus.UNPAID) {
-            payment.setPaidAt(null);
         }
 
         return toResponse(orderPaymentRepository.save(payment));

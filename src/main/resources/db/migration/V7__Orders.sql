@@ -18,11 +18,19 @@ CREATE TABLE orders (
                         cancel_reason VARCHAR(255),
                         customer_note TEXT,
 
+                        recipient_name VARCHAR(150),
+                        recipient_phone VARCHAR(50),
+                        delivery_address TEXT,
+                        delivery_instructions TEXT,
+                        delivery_area_name VARCHAR(150),
+                        delivery_method VARCHAR(30),
+
                         subtotal NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         delivery_fee NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         discount_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         total NUMERIC(12, 2) NOT NULL DEFAULT 0,
                         currency VARCHAR(10) NOT NULL DEFAULT 'KRW',
+
                         created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

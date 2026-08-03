@@ -60,6 +60,24 @@ public class Order extends BaseEntity {
     @Column(name = "customer_note")
     private String customerNote;
 
+    @Column(name = "recipient_name", length = 150)
+    private String recipientName;
+
+    @Column(name = "recipient_phone", length = 50)
+    private String recipientPhone;
+
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
+
+    @Column(name = "delivery_instructions")
+    private String deliveryInstructions;
+
+    @Column(name = "delivery_area_name", length = 150)
+    private String deliveryAreaName;
+
+    @Column(name = "delivery_method", length = 30)
+    private String deliveryMethod;
+
     @Column(nullable = false)
     private BigDecimal subtotal = BigDecimal.ZERO;
 
