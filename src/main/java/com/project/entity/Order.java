@@ -31,9 +31,6 @@ public class Order extends BaseEntity {
     @Column(name = "order_number", nullable = false, unique = true)
     private String orderNumber;
 
-    @Column(name = "delivery_address")
-    private String deliveryAddress;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderType type;

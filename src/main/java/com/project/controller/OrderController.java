@@ -6,8 +6,10 @@ import java.util.List;
 
 import com.project.entity.OrderStatus;
 import com.project.service.OrderService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -68,8 +70,14 @@ public class OrderController {
     public Page<OrderResponseDto> getStoreOrders(
             @PathVariable UUID storeId,
             @RequestParam(required = false) OrderStatus status,
-            @PageableDefault(size = 20, sort = "createdAt")Pageable pageable
-            ) {
+
+            @Parameter(
+                    description = "Example: createdAt,DESC (newest first) or createdAt,ASC (oldest first)"
+            )
+            @ParameterObject
+            @PageableDefault(size = 20, sort = "createdAt")
+            Pageable pageable
+    ) {
         return orderService.getStoreOrders(storeId, status, pageable);
     }
 

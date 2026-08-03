@@ -3,11 +3,10 @@ CREATE TABLE orders (
 
                         store_id UUID NOT NULL,
                         customer_id UUID NOT NULL,
-                        customer_name VARCHAR(255) NOT NULL DEFAULT,
-                        customer_phone VARCHAR(50) NOT NULL DEFAULT,
+                        customer_name VARCHAR(255) NOT NULL,
+                        customer_phone VARCHAR(50) NOT NULL,
 
                         order_number VARCHAR(100) NOT NULL UNIQUE,
-                        delivery_address VARCHAR(255),
                         type VARCHAR(30) NOT NULL,
                         status VARCHAR(30) NOT NULL,
 

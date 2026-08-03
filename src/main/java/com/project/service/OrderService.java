@@ -3,23 +3,12 @@ package com.project.service;
 import com.project.dto.OrderRequestDto;
 import com.project.dto.OrderResponseDto;
 import com.project.entity.*;
-<<<<<<< HEAD
-import com.project.repository.CustomerRepository;
-import com.project.repository.OrderRepository;
-import com.project.repository.StoreRepository;
-=======
 import com.project.repository.*;
->>>>>>> dev
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.project.dto.OrderItemRequestDto;
-<<<<<<< HEAD
-import com.project.repository.ProductRepository;
-=======
-
->>>>>>> dev
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -29,11 +18,6 @@ import com.project.dto.OrderItemResponseDto;
 import java.util.List;
 import com.project.dto.OrderItemModifierRequestDto;
 import com.project.dto.OrderItemModifierResponseDto;
-<<<<<<< HEAD
-import com.project.repository.ModifierOptionRepository;
-=======
->>>>>>> dev
-
 import java.time.LocalDateTime;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
@@ -351,6 +335,7 @@ public class OrderService {
             order.getDeliveryFee(),
             order.getDiscountTotal()
     );
+        order.setTotal(total);
 
         order.setOrderNumber(
                 "ORD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase()
@@ -597,7 +582,6 @@ public class OrderService {
                 order.getOrderNumber(),
                 order.getType(),
                 order.getStatus(),
-                order.getDeliveryAddress(),
                 order.getCustomerNote(),
                 order.getRecipientName(),
                 order.getRecipientPhone(),
