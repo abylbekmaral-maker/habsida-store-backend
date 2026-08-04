@@ -26,12 +26,24 @@ public class ProductController {
     private final ModifierService modifierService;
 
     @GetMapping
-    public ResponseEntity<Page<ProductResponseDto>> getAllProducts(
+    public ResponseEntity<Page<ProductResponseDto>> getPublicProducts(
             @PathVariable String storeSlug,
             @RequestParam(required = false) String categorySlug,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page,size);
+        Page<ProductResponseDto> products = productService.getPublicProducts(storeSlug, categorySlug, pageable);
+        return ResponseEntity.ok(products);
+    }
+
+    @GetMapping("/manage")
+    @PreAuthorize("@storeSecurity.hasStoreAccess(#storeSlug, 'ROLE_MERCHANT')")
+    public ResponseEntity<Page<ProductResponseDto>> getMerchantProducts(
+            @PathVariable String storeSlug,
+            @RequestParam(required = false) String categorySlug,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
         Page<ProductResponseDto> products = productService.getProducts(storeSlug, categorySlug, pageable);
         return ResponseEntity.ok(products);
     }

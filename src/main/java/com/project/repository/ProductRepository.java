@@ -11,10 +11,25 @@ import java.util.UUID;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
-    @Query("SELECT p FROM Product p WHERE p.store.slug = :storeSlug " +
-            "AND p.pauseOrdering = false " +
-            "AND p.stock > 0 " +
-            "AND (:categorySlug IS NULL OR p.category.slug = :categorySlug)")
+    @Query("""
+            SELECT p FROM Product p WHERE p.store.slug = :storeSlug
+            AND p.store.isActive = true
+            AND p.pauseOrdering = false
+            AND (p.stock IS NULL OR p.stock > 0)
+            AND (:categorySlug IS NULL OR p.category.slug = :categorySlug)
+            """)
+
+    Page<Product> findPublicProducts(
+            @Param("storeSlug") String storeSlug,
+            @Param("categorySlug") String categorySlug,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT p FROM Product p
+        WHERE p.store.slug = :storeSlug
+          AND (:categorySlug IS NULL OR p.category.slug = :categorySlug)
+    """)
 
     Page<Product> findProductWithFilters(
             @Param("storeSlug") String storeSlug,

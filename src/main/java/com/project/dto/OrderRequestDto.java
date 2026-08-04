@@ -2,50 +2,30 @@ package com.project.dto;
 
 import com.project.entity.DeliveryType;
 import com.project.entity.OrderType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import java.util.List;
+import jakarta.validation.constraints.NotNull;
 
+import java.util.List;
 import java.util.UUID;
 
 public record OrderRequestDto(
 
-        @NotNull
+        @NotNull(message = "Store ID is required")
         UUID storeId,
 
         UUID customerId,
 
-        @NotNull
+        @NotNull(message = "Order type is required")
         OrderType type,
 
-        String customerNote,
-
-        @NotBlank
-        String recipientName,
-
-        @NotBlank
-        String recipientPhone,
-
-        String deliveryAddress,
-
-        String deliveryCity,
-
-        String deliveryAreaName,
-
-        String deliveryInstructions,
-
-        UUID deliveryAreaId,
-        
         DeliveryType deliveryMethod,
 
-        @Valid
-        @NotEmpty
-        List<OrderItemRequestDto> items,
-
-        @NotBlank(message = "Name is required")
+        String customerNote,
+        
+        @NotBlank(message = "First name is required")
         String firstName,
 
         String lastName,
@@ -55,7 +35,18 @@ public record OrderRequestDto(
 
         @Email(message = "Invalid email format")
         String email,
+        
+        String recipientName,
+        String recipientPhone,
+        
+        String deliveryAddress,
+        String deliveryCity,
+        String deliveryAreaName,
+        String deliveryInstructions,
+        UUID deliveryAreaId,
 
-        String address
+        @Valid
+        @NotEmpty(message = "Order must contain at least one item")
+        List<OrderItemRequestDto> items
 ) {
 }

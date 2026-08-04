@@ -50,9 +50,9 @@ public class ProductService {
                 )
                 .map(this::toResponseDto);
     }
+
     @Transactional(readOnly = true)
     public ProductResponseDto getProductById(String storeSlug, UUID id) {
-
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
@@ -61,6 +61,27 @@ public class ProductService {
         }
 
         return toResponseDto(product);
+    }
+
+    @Transactional(readOnly = true)
+    public ProductResponseDto getPublicProductById(String storeSlug, UUID id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+        if (!product.getStore().getSlug().equals(storeSlug)
+                || !product.getStore().isActive()
+                || product.isPauseOrdering()
+                || (product.getStock() != null && product.getStock() <= 0)) {
+            throw new ResourceNotFoundException("Product not found");
+        }
+
+        return toResponseDto(product);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDto> getPublicProducts(String storeSlug, String categorySlug, Pageable pageable) {
+        Page<Product> products = productRepository.findPublicProducts(storeSlug, categorySlug, pageable);
+        return products.map(this::toResponseDto);
     }
 
     @Transactional

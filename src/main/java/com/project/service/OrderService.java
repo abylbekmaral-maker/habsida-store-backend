@@ -44,7 +44,7 @@ public class OrderService {
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto request) {
 
-        if (request.type() == OrderType.DELIVERY && (request.address() == null || request.address().isBlank())) {
+        if (request.type() == OrderType.DELIVERY && (request.deliveryAddress() == null || request.deliveryAddress().isBlank())) {
             throw new ConflictException("Delivery address is required for DELIVERY orders");
         }
 
@@ -371,9 +371,9 @@ public class OrderService {
         customer.setName(fullName.trim());
         customer.setPhone(request.phone());
 
-        if (request.address() != null && !request.address().isBlank()) {
+        if (request.deliveryAddress() != null && !request.deliveryAddress().isBlank()) {
             CustomerAddress customerAddress = new CustomerAddress();
-            customerAddress.setAddressLine(request.address());
+            customerAddress.setAddressLine(request.deliveryAddress());
             customerAddress.setDefault(true);
 
             customer.addAddress(customerAddress);
@@ -447,6 +447,10 @@ public class OrderService {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (!storeAccessService.hasStoreAccess(order.getStore().getSlug(), "ROLE_MERCHANT")) {
+            throw new SecurityException("No access to this store");
+        }
 
         if (order.getStatus() == OrderStatus.COMPLETED ||
             order.getStatus() == OrderStatus.CANCELED  ||
