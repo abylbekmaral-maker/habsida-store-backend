@@ -29,11 +29,10 @@ public class ProductController {
     public ResponseEntity<Page<ProductResponseDto>> getAllProducts(
             @PathVariable String storeSlug,
             @RequestParam(required = false) String categorySlug,
-            @RequestParam(required = false) Boolean pauseOrdering,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page,size);
-        Page<ProductResponseDto> products = productService.getProducts(storeSlug, categorySlug, pauseOrdering, pageable);
+        Page<ProductResponseDto> products = productService.getProducts(storeSlug, categorySlug, pageable);
         return ResponseEntity.ok(products);
     }
 

@@ -35,7 +35,6 @@ public class ProductService {
     public Page<ProductResponseDto> getProducts(
             String storeSlug,
             String categorySlug,
-            Boolean pauseOrdering,
             Pageable pageable
     ) {
         storeRepository.findBySlug(storeSlug)
@@ -47,7 +46,6 @@ public class ProductService {
         return productRepository.findProductWithFilters(
                         storeSlug,
                         categorySlug,
-                        pauseOrdering,
                         pageable
                 )
                 .map(this::toResponseDto);

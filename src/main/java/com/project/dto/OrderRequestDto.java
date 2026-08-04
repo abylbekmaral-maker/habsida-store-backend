@@ -56,7 +56,6 @@ public record OrderRequestDto(
         @Email(message = "Invalid email format")
         String email,
 
-        @NotBlank(message = "Shipping address is required")
         String address
 ) {
 }

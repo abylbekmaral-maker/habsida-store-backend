@@ -1,6 +1,7 @@
 package com.project.controller;
 
 import com.project.dto.CreateStoreRequest;
+import com.project.dto.PublicStorefrontDto;
 import com.project.dto.StoreResponseDto;
 import com.project.service.StoreService;
 import jakarta.validation.Valid;
@@ -19,7 +20,14 @@ import java.util.UUID;
 public class StoreController {
 
     private final StoreService storeService;
-    
+
+    @GetMapping("/{storeSlug}/storefront")
+    public PublicStorefrontDto getPublicStorefront(
+            @PathVariable String storeSlug
+    ) {
+        return storeService.getPublicStorefront(storeSlug);
+    }
+
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

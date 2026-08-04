@@ -1,13 +1,13 @@
 package com.project.service;
 
-import com.project.dto.CreateStoreRequest;
-import com.project.dto.StoreResponseDto;
+import com.project.dto.*;
 import com.project.entity.Store;
+import com.project.entity.StoreDeliveryArea;
+import com.project.entity.StoreDeliverySettings;
 import com.project.entity.User;
 import com.project.exception.ConflictException;
 import com.project.exception.ResourceNotFoundException;
-import com.project.repository.StoreRepository;
-import com.project.repository.UserRepository;
+import com.project.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +22,9 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final StoreAccessService storeAccessService;
     private final UserRepository userRepository;
+    private final StoreDeliverySettingsRepository storeDeliverySettingsRepository;
+    private final StoreDeliveryAreaRepository storeDeliveryAreaRepository;
+    private final StoreHourRepository storeHourRepository;
 
     @Transactional
     public StoreResponseDto createStore(CreateStoreRequest request) {
@@ -70,6 +73,76 @@ public class StoreService {
         }
 
         return toResponseDto(store);
+    }
+    @Transactional(readOnly = true)
+    public PublicStorefrontDto getPublicStorefront(String storeSlug) {
+
+        Store store = storeRepository.findBySlug(storeSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+
+        StoreDeliverySettings settings = storeDeliverySettingsRepository
+                .findByStore(store)
+                .orElse(null);
+
+        StoreDeliverySettingsResponseDto settingsDto = null;
+        List<StoreDeliveryAreaResponseDto> areaDtos = List.of();
+
+        if (settings != null) {
+            settingsDto = new StoreDeliverySettingsResponseDto(
+                    settings.getId(),
+                    store.getId(),
+                    settings.isDeliveryEnabled(),
+                    settings.getDeliveryType(),
+                    settings.getMinimumOrderAmount(),
+                    settings.getFreeDeliveryThreshold(),
+                    settings.getMaxDistanceKm(),
+                    settings.getCity(),
+                    settings.getZone()
+            );
+
+            areaDtos = storeDeliveryAreaRepository
+                    .findAllByDeliverySettings(settings)
+                    .stream()
+                    .filter(StoreDeliveryArea::isActive)
+                    .map(area -> new StoreDeliveryAreaResponseDto(
+                            area.getId(),
+                            settings.getId(),
+                            area.getCity(),
+                            area.getAreaName(),
+                            area.getDeliveryFee(),
+                            area.isActive()
+                    ))
+                    .toList();
+        }
+
+        List<StoreHourResponseDto> hourDtos = storeHourRepository
+                .findAllByStoreSlugOrderByDayOfWeek(storeSlug)
+                .stream()
+                .map(hour -> new StoreHourResponseDto(
+                        hour.getId(),
+                        hour.getDayOfWeek(),
+                        hour.getOpenTime(),
+                        hour.getCloseTime(),
+                        hour.isClosed(),
+                        hour.getLastOrderCutoffTime(),
+                        hour.getBreaks().stream()
+                                .map(storeBreak -> new StoreBreakResponseDto(
+                                        storeBreak.getId(),
+                                        storeBreak.getStartTime(),
+                                        storeBreak.getEndTime()
+                                ))
+                                .toList()
+                ))
+                .toList();
+
+        return new PublicStorefrontDto(
+                store.getId(),
+                store.getName(),
+                store.getSlug(),
+                settingsDto,
+                hourDtos,
+                areaDtos
+        );
     }
 
     private StoreResponseDto toResponseDto(Store store) {

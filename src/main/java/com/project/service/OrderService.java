@@ -60,15 +60,19 @@ public class OrderService {
                     .orElseGet(() -> createNewCustomer(request));
         }
 
-        StoreDeliveryArea deliveryArea = storeDeliveryAreaRepository.findById(request.deliveryAreaId())
-                .orElseThrow(() -> new ResourceNotFoundException("Delivery area not found"));
+        StoreDeliveryArea deliveryArea = null;
+        StoreDeliverySettings deliverySettings = null;
 
-        StoreDeliverySettings deliverySettings = storeDeliverySettingsRepository
-                .findByStore(store)
-                .orElseThrow(() -> new ResourceNotFoundException("Delivery settings not found"));
+        if (request.type() == OrderType.DELIVERY) {
+            deliveryArea = storeDeliveryAreaRepository.findById(request.deliveryAreaId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Delivery area not found"));
 
+            deliverySettings = storeDeliverySettingsRepository
+                    .findByStore(store)
+                    .orElseThrow(() -> new ResourceNotFoundException("Delivery settings not found"));
+        }
         ZoneId storeZone = ZoneId.systemDefault();
-        
+
         LocalTime nowTime = LocalTime.now(storeZone);
         LocalDate nowDate = LocalDate.now(storeZone);
 
@@ -106,66 +110,69 @@ public class OrderService {
         if (onBreak) {
             throw new ConflictException("Store is currently on a break");
         }
+        List<StoreDeliveryRestriction> restrictions = List.of();
+        if (request.type() == OrderType.DELIVERY) {
 
-        if (!deliverySettings.isDeliveryEnabled()) {
-            throw new ConflictException("Delivery is disabled for this store");
-        }
-
-        DeliveryType configuredType = deliverySettings.getDeliveryType();
-        DeliveryType requestedType = request.deliveryMethod();
-
-        if (configuredType != DeliveryType.BOTH && configuredType != requestedType) {
-            throw new ConflictException(
-                    "Selected delivery method is not supported by this store"
-            );
-        }
-
-        if (!deliveryArea.getDeliverySettings().getStore().getId().equals(store.getId())) {
-            throw new ConflictException("Delivery area does not belong to this store");
-        }
-        if (!deliveryArea.isActive()) {
-            throw new ConflictException("Delivery area is not active");
-        }
-
-        String requestCity = request.deliveryCity() != null ? request.deliveryCity().trim() : "";
-        String requestArea = request.deliveryAreaName() != null ? request.deliveryAreaName().trim() : "";
-        
-        if (!deliveryArea.getCity().equalsIgnoreCase(requestCity)) {
-            throw new ConflictException(
-                    "Delivery address city does not match the selected delivery area"
-            );
-        }
-
-        if (!deliveryArea.getAreaName().equalsIgnoreCase(requestArea)) {
-            throw new ConflictException(
-                    "Delivery address area does not match the selected delivery area"
-            );
-        }
-        List<StoreDeliveryRestriction> restrictions = storeDeliveryRestrictionRepository
-                .findAllByDeliverySettings(deliverySettings)
-                .stream()
-                .filter(StoreDeliveryRestriction::isActive)
-                .toList();
-        
-        for (StoreDeliveryRestriction restriction : restrictions) {
-
-            String type = restriction.getRestrictionType().trim().toLowerCase();
-            String value = restriction.getRestrictionValue();
-
-            if ("block_city".equals(type) && value != null && value.equalsIgnoreCase(requestCity)) {
-                throw new ConflictException("Delivery is restricted for this city");
+            if (!deliverySettings.isDeliveryEnabled()) {
+                throw new ConflictException("Delivery is disabled for this store");
             }
 
-            if ("block_area".equals(type) && value != null && value.equalsIgnoreCase(requestArea)) {
-                throw new ConflictException("Delivery is restricted for this area");
-            }
+            DeliveryType configuredType = deliverySettings.getDeliveryType();
+            DeliveryType requestedType = request.deliveryMethod();
 
-            if ("block_delivery_method".equals(type)
-                    && value != null
-                    && value.equalsIgnoreCase(request.deliveryMethod().name())) {
+            if (configuredType != DeliveryType.BOTH && configuredType != requestedType) {
                 throw new ConflictException(
-                        "Selected delivery method is restricted"
+                        "Selected delivery method is not supported by this store"
                 );
+            }
+
+            if (!deliveryArea.getDeliverySettings().getStore().getId().equals(store.getId())) {
+                throw new ConflictException("Delivery area does not belong to this store");
+            }
+            if (!deliveryArea.isActive()) {
+                throw new ConflictException("Delivery area is not active");
+            }
+
+            String requestCity = request.deliveryCity() != null ? request.deliveryCity().trim() : "";
+            String requestArea = request.deliveryAreaName() != null ? request.deliveryAreaName().trim() : "";
+
+            if (!deliveryArea.getCity().equalsIgnoreCase(requestCity)) {
+                throw new ConflictException(
+                        "Delivery address city does not match the selected delivery area"
+                );
+            }
+
+            if (!deliveryArea.getAreaName().equalsIgnoreCase(requestArea)) {
+                throw new ConflictException(
+                        "Delivery address area does not match the selected delivery area"
+                );
+            }
+            restrictions = storeDeliveryRestrictionRepository
+                    .findAllByDeliverySettings(deliverySettings)
+                    .stream()
+                    .filter(StoreDeliveryRestriction::isActive)
+                    .toList();
+
+            for (StoreDeliveryRestriction restriction : restrictions) {
+
+                String type = restriction.getRestrictionType().trim().toLowerCase();
+                String value = restriction.getRestrictionValue();
+
+                if ("block_city".equals(type) && value != null && value.equalsIgnoreCase(requestCity)) {
+                    throw new ConflictException("Delivery is restricted for this city");
+                }
+
+                if ("block_area".equals(type) && value != null && value.equalsIgnoreCase(requestArea)) {
+                    throw new ConflictException("Delivery is restricted for this area");
+                }
+
+                if ("block_delivery_method".equals(type)
+                        && value != null
+                        && value.equalsIgnoreCase(request.deliveryMethod().name())) {
+                    throw new ConflictException(
+                            "Selected delivery method is restricted"
+                    );
+                }
             }
         }
         Order order = new Order();
@@ -184,9 +191,14 @@ public class OrderService {
         order.setRecipientPhone(request.recipientPhone());
         order.setDeliveryAddress(request.deliveryAddress());
         order.setDeliveryInstructions(request.deliveryInstructions());
-        order.setDeliveryMethod(request.deliveryMethod().name());
-        order.setDeliveryAreaName(deliveryArea.getAreaName());
 
+        if (request.type() == OrderType.DELIVERY) {
+            order.setDeliveryMethod(request.deliveryMethod().name());
+            order.setDeliveryAreaName(deliveryArea.getAreaName());
+        } else {
+            order.setDeliveryMethod(null);
+            order.setDeliveryAreaName(null);
+        }
         BigDecimal subtotal = BigDecimal.ZERO;
 
         for (OrderItemRequestDto itemRequest : request.items()) {
@@ -298,8 +310,9 @@ public class OrderService {
 
             subtotal = subtotal.add(lineTotal);
         }
-        if (deliverySettings.getMinimumOrderAmount() != null
-            && subtotal.compareTo(deliverySettings.getMinimumOrderAmount()) < 0) {
+        if (request.type() == OrderType.DELIVERY
+                && deliverySettings.getMinimumOrderAmount() != null
+                && subtotal.compareTo(deliverySettings.getMinimumOrderAmount()) < 0) {
             throw new ConflictException("Minimum order amount is not reached");
         }
         for (StoreDeliveryRestriction restriction : restrictions) {
@@ -326,7 +339,11 @@ public class OrderService {
             }
         }
 
-    order.setDeliveryFee(deliveryArea.getDeliveryFee());
+        if (request.type() == OrderType.DELIVERY) {
+            order.setDeliveryFee(deliveryArea.getDeliveryFee());
+        } else {
+            order.setDeliveryFee(BigDecimal.ZERO);
+        }
     order.setSubtotal(subtotal);
     order.setDiscountTotal(BigDecimal.ZERO);
 

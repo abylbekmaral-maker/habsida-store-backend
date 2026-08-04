@@ -12,13 +12,13 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     @Query("SELECT p FROM Product p WHERE p.store.slug = :storeSlug " +
-            "AND (:categorySlug IS NULL OR p.category.slug = :categorySlug) " +
-            "AND (:pauseOrdering IS NULL OR p.pauseOrdering = :pauseOrdering)")
+            "AND p.pauseOrdering = false " +
+            "AND p.stock > 0 " +
+            "AND (:categorySlug IS NULL OR p.category.slug = :categorySlug)")
 
     Page<Product> findProductWithFilters(
             @Param("storeSlug") String storeSlug,
             @Param("categorySlug") String categorySlug,
-            @Param("pauseOrdering") Boolean pauseOrdering,
             Pageable pageable
     );
 
