@@ -16,4 +16,5 @@ spring:
       on-migrate: false
 
 server:
-  port: ${SERVER_PORT:80}
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
