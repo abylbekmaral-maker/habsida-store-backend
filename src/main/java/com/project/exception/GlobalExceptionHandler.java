@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.AccessDeniedException;
-
+import org.springframework.security.authentication.BadCredentialsException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -15,6 +15,20 @@ import java.util.List;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(BadCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleBadCredentialsException(
+            BadCredentialsException ex, HttpServletRequest request) {
+
+        return new ErrorResponse(
+                LocalDateTime.now(),
+                401,
+                "Unauthorized",
+                "Invalid username or password",
+                request.getRequestURI(),
+                null
+        );
+    }
     @ExceptionHandler(SecurityException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handleSecurityException(SecurityException ex, HttpServletRequest request) {

@@ -1,6 +1,8 @@
 package com.project.config;
 
 import com.project.security.CustomUserDetailsService;
+import com.project.security.JwtAccessDeniedHandler;
+import com.project.security.JwtAuthenticationEntryPoint;
 import com.project.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +30,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
@@ -48,18 +52,37 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
 
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/stores/**",
-                                "/api/categories/**",
-                                "/api/products/**",
-                                "/api/modifiers/**",
-                                "/api/orders/track"
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/stores/{storeSlug}/storefront"
                         ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/stores/*/categories"
+                        ).permitAll()
+
                         .requestMatchers(HttpMethod.POST, "/api/orders").permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/stores/*/products",
+                                "/api/stores/*/products/*"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/stores/*/modifiers",
+                                "/api/stores/*/modifiers/*"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -12,8 +12,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "Habsida Delivery API",
                 version = "v1"
-        ),
-        security = @SecurityRequirement(name = "bearerAuth")
+        )
 )
 @SecurityScheme(
         name = "bearerAuth",
