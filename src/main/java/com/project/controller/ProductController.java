@@ -56,7 +56,7 @@ public class ProductController {
 
     @Operation(
             summary = "Get merchant products",
-            description = "Returns all products for the merchant's store."
+            description = "Shows store products. ADMIN or MERCHANT (store access)"
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Products found"),
